@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import io from "socket.io-client";
 import { useAuthContext } from "./AuthContext";
-import Toast from "react-native-toast-message";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import config from "../api/config";
+import { useNavigation } from "@react-navigation/native";
+import useToast from "../hooks/useToast";
+import { useDispatch } from "react-redux";
+import { setIsGroup } from "../redux/stateCreateGroupSlice";
 
 const SocketContext = createContext();
 export const useSocketContext = () => {
@@ -18,6 +21,9 @@ export const SocketContextProvider = ({ children }) => {
 
   const [isNewSocket, setIsNewSocket] = useState(null);
   const [newSocketData, setNewSocketData] = useState(null);
+  const navigation = useNavigation();
+  const { showToastFriendRequest, showToastError } = useToast()
+  const dispatch = useDispatch()
 
   const connectSocket = (token) => {
     const newSocket = io(config.socketURL, {
@@ -46,7 +52,7 @@ export const SocketContextProvider = ({ children }) => {
     if (socket) {
       socket.on("force_logout", () => {
         if (authUser) {
-          Toast.error("Your account has been logged out from another device");
+          showToastError("Your account has been logged out from another device");
         }
         socket.disconnect();
         setAuthUser(null);
@@ -98,26 +104,25 @@ export const SocketContextProvider = ({ children }) => {
   }, [socket, authUser]);
 
   const handleReceiveFriendRequest = async (sender) => {
-    Toast.show({
-      text1: `${sender.sender.name} đã gửi một yêu cầu kết bạn`,
-      type: "success",
-    });
+    const senderPf = sender.sender.profile
+    showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã gửi một yêu cầu kết bạn", navigation, "FriendRequest")
+    dispatch(setIsGroup())
     await reloadAuthUser();
   };
 
   const handleFriendAcceptAction = async (sender) => {
-    Toast.show({
-      text1: `${sender.sender.name} đã chấp nhận yêu cầu kết bạn`,
-      type: "success",
-    });
+    const senderPf = sender.sender.profile
+    showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã chấp nhận yêu cầu kết bạn", navigation, "Contact")
+    dispatch(setIsGroup())
+
     await reloadAuthUser();
   };
   const handleFriendRejectAction = async (sender) => {
     console.log("reject", sender);
-    Toast.show({
-      text1: `${sender.sender.name} đã từ chối yêu cầu kết bạn`,
-      type: "error",
-    });
+    const senderPf = sender.sender.profile
+    showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã từ chối yêu cầu kết bạn", navigation, "Contact")
+    dispatch(setIsGroup())
+
     await reloadAuthUser();
   };
 

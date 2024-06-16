@@ -6,26 +6,15 @@ import {
   ActivityIndicator,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { Entypo, Ionicons } from "react-native-vector-icons";
+import { Entypo, Ionicons } from "@expo/vector-icons";
 import FontAwesomeIcons from "react-native-vector-icons/FontAwesome5";
-import useLogout from "../../hooks/useLogout";
-import Toast from "react-native-toast-message";
-
-const showToastError = (notice) => {
-  Toast.show({
-    text1: "Sorry !",
-    text1Style: { fontSize: 16 },
-    text2: notice,
-    text2Style: { fontSize: 14 },
-    type: "error",
-    topOffset: 40,
-    position: "top",
-  });
-};
+import useToast from "../../hooks/useToast";
+import useAuth from "../../hooks/useAuth";
 
 const PersonalSetting = ({ navigation }) => {
-  const logout = useLogout();
+  const { logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const { showToastError } = useToast()
 
   useEffect(() => {
     navigation.setOptions({

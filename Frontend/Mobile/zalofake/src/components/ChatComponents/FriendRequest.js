@@ -5,7 +5,7 @@ import useFriend from "../../hooks/useFriend";
 import { useDispatch } from "react-redux";
 import { setIsGroup } from "../../redux/stateCreateGroupSlice";
 
-function FriendRequestComponent({navigation}) {
+function FriendRequestComponent({ navigation }) {
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -34,13 +34,13 @@ function FriendRequestComponent({navigation}) {
       },
     });
   }, [navigation]);
+
   const { authUser, reloadAuthUser } = useAuthContext();
-  const { getAllFriends, getFriendById, acceptFriend, rejectFriend, cancelFriendRequest, } = useFriend();
+  const { getFriends, getFriendById, acceptFriend, rejectFriend, cancelFriendRequest, } = useFriend();
   const [friendRequests, setFriendRequests] = useState([]);
   const [friendReceived, setFriendReceived] = useState([]);
 
   useEffect(() => {
-    getAllFriends();
     if (authUser.requestSent) {
       const promises = authUser.requestSent.map((id) => getFriendById(id));
       Promise.all(promises).then((friends) => setFriendRequests(friends));
@@ -119,11 +119,7 @@ function FriendRequestComponent({navigation}) {
             <View key={friendRequest.id} style={styles.card}>
               <View style={styles.cardContent}>
                 <Image
-                  source={{
-                    uri:
-                      friendRequest?.profile?.avatar?.url ||
-                      "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-                  }}
+                  source={{ uri: friendRequest.profile.avatar.url }}
                   style={styles.avatar}
                 />
                 <View style={styles.userInfo}>

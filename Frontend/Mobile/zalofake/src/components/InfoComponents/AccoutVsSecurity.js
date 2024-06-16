@@ -4,8 +4,6 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import FontAwesomeIcons from "react-native-vector-icons/FontAwesome5";
 import { Switch } from "react-native-paper";
 
-// CSS styles
-
 const AccountVsSecurity = ({ navigation }) => {
   useEffect(() => {
     navigation.setOptions({

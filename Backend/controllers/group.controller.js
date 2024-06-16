@@ -32,7 +32,7 @@ exports.createGroup = async (req, res) => {
     const group = await Group.create({
       groupName: name,
       avatar: {
-        url: "https://res.cloudinary.com/dq3pxd9eq/image/upload/group_avatar.jpg",
+        url: "https://res.cloudinary.com/dg1u2asad/image/upload/v1718290657/Zalo_App/group_profile_avatar_wlppjc.jpg",
         public_id: "group_avatar",
       },
       conversation: conversation._id,

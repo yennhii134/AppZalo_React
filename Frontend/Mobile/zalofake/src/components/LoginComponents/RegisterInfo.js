@@ -8,142 +8,55 @@ import {
   Modal,
   StyleSheet,
   ActivityIndicator,
-  Linking
+  Linking,
 } from "react-native";
 import { CheckBox } from "react-native-elements";
-import { FontAwesome5 } from "@expo/vector-icons";
-import OTPTextView from "react-native-otp-textinput";
-import useRegister from "../../hooks/useRegister";
 import apiConfig from "../../api/config";
-import useLogin from "../../hooks/useLogin";
-import useToast from "../../hooks/useToast";
+import AuthenOTP from "../ModalComponents/AuthenOTP";
+import useAuth from "../../hooks/useAuth";
 
 const RegisterInfo = ({ navigation, route }) => {
   const [isCheckedUse, setIsCheckedUse] = useState(false);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isModalLoginVisible, setModalLoginVisible] = useState(false);
-  const [isModalAuthCode, setModalAuthCode] = useState(false);
   const [selectedGender, setSelectedGender] = useState("male");
   const [textPW, setTextPW] = useState("");
   const [textRetypePW, setTextRetypePW] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRetypePassword, setShowRetypePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useLogin();
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [isCounting, setIsCounting] = useState(false);
-  const [otp, setOtp] = useState("");
+  const { login } = useAuth();
   const { name, textPhone, textEmail } = route.params;
-  const [isPreSendCode, setIsPreSendCode] = useState(false);
   const [checkValid, setCheckValid] = useState(false);
-  const { getOTP, verifyEmailAndRegister } = useRegister();
-  const { showToastError } = useToast();
+  const { verifyEmailAndRegister } = useAuth();
   const [isError, setIsError] = useState([])
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
 
-  // tiến hành gửi lại mã otp, nếu đã gửi sẽ hiển thị modal cho nhập email
-  const pressPreSendOTP = async () => {
-    setIsLoading(true);
-    const systemOTP = await getOTP(textEmail);
-    if (systemOTP) {
-      setIsLoading(false);
-      setTimeLeft(60);
-      sendTime();
-      setIsPreSendCode(false)
-      setIsCounting(true)
-    }
-  };
   // xác thực email và tiến hành đăng ký
-  const handleSubmitEmail = async (e) => {
+  const handleSubmitEmail = async () => {
     setIsLoading(true);
     const response = await verifyEmailAndRegister(
       textEmail,
-      otp,
       textPhone,
       name,
       new Date('2000-01-01'),
       selectedGender,
-      textPW
+      textPW,
     );
     if (response) {
       toggleModalLogin();
-      toggleModalAuthCode();
-    }
-    setIsLoading(false);
-  };
-  // button khi nhấn vào xác nhận emai để gửi email
-  const handleXacNhan = async () => {
-    setIsLoading(true);
-    const systemOTP = await getOTP(textEmail);
-    if (systemOTP) {
-      setModalVisible(false);
-      handlesendAuthCode();
-    } else {
-      setModalVisible(false);
-    }
-    setIsLoading(false);
-  };
-
-  const handlesendAuthCode = async (e) => {
-    toggleModalAuthCode();
-    setTimeLeft(60);
-    setIsPreSendCode(false);
-    sendTime();
-  };
-
-  const handleOTPChange = (enteredOtp) => {
-    setOtp(enteredOtp);
-  };
-  // kiểm tra otp có đầy đủ không
-  const handleVerifyOTP = () => {
-    setIsLoading(true);
-    if (otp.length === 6) {
-      handleSubmitEmail();
-    } else {
-      showToastError("Hãy nhập đủ mã xác thực");
       setIsLoading(false);
     }
+    setIsLoading(false);
   };
-
-  // đếm thời gian giảm dần
-  useEffect(() => {
-    let timer;
-    if (isCounting && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prevTime) => prevTime - 1);
-      }, 1000);
-    } else {
-      setIsPreSendCode(true);
-      clearInterval(timer);
-      setIsCounting(false);
-    }
-
-    // Xóa interval khi component bị unmount
-    return () => clearInterval(timer);
-  }, [isCounting, timeLeft]);
-
 
   useEffect(() => {
-    if (timeLeft === 0) {
-      return;
+    if (isOtpVerified) {
+      handleSubmitEmail()
     }
-  }, [timeLeft]);
 
-  const formatTime = (time) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = time % 60;
-    return `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
-  };
-  const sendTime = () => {
-    setIsCounting(true);
-  };
-  const toggleModal = () => {
-    setModalVisible(!isModalVisible);
-    setIsLoading(false)
-  };
+  }, [isOtpVerified])
 
-  const toggleModalAuthCode = () => {
-    setModalAuthCode(!isModalAuthCode);
-  };
   const toggleModalLogin = () => {
     setModalLoginVisible(!isModalLoginVisible);
   };
@@ -165,16 +78,18 @@ const RegisterInfo = ({ navigation, route }) => {
     if (newError.length > 0) {
       setIsError(newError)
     } else {
-      toggleModal();
+      setIsError([])
+      setModalVisible(!isModalVisible)
     }
   };
-  useEffect(() => {
-    if (textPW === '' || textRetypePW === '') {
+
+  const checkPwEmpty = (password) => {
+    if (password === '') {
       setCheckValid(false)
     } else {
       setCheckValid(true)
     }
-  }, [textPW, textRetypePW]);
+  }
 
   const handleXacNhanLogin = async () => {
     toggleModalLogin();
@@ -202,6 +117,7 @@ const RegisterInfo = ({ navigation, route }) => {
     )
   }
 
+
   return (
     <View style={styles.container}>
       <View style={styles.toastContainer}>
@@ -217,7 +133,10 @@ const RegisterInfo = ({ navigation, route }) => {
         <TextInput
           id="pw"
           secureTextEntry={!showPassword}
-          onChangeText={(input) => setTextPW(input)}
+          onChangeText={(input) => {
+            setTextPW(input);
+            checkPwEmpty(input)
+          }}
           value={textPW}
           placeholder="Mật khẩu"
           placeholderTextColor={"gray"}
@@ -233,7 +152,10 @@ const RegisterInfo = ({ navigation, route }) => {
         <TextInput
           id="rtpw"
           secureTextEntry={!showRetypePassword}
-          onChangeText={(input) => setTextRetypePW(input)}
+          onChangeText={(enteredRetypePw) => {
+            setTextRetypePW(enteredRetypePw);
+            checkPwEmpty(enteredRetypePw)
+          }}
           value={textRetypePW}
           placeholder="Nhập lại mật khẩu"
           placeholderTextColor={"gray"}
@@ -284,7 +206,7 @@ const RegisterInfo = ({ navigation, route }) => {
         )}
       </Pressable>
 
-      <Modal
+      {/* <Modal
         animationType="slide"
         transparent={true}
         visible={isModalVisible}
@@ -302,7 +224,7 @@ const RegisterInfo = ({ navigation, route }) => {
               <Pressable onPress={toggleModal}>
                 <Text style={styles.modalButton}>HỦY</Text>
               </Pressable>
-              <Pressable onPress={handleXacNhan}>
+              <Pressable onPress={() => { setModalAuthCode(true); setModalVisible(false) }}>
                 {isLoading ? (
                   <ActivityIndicator color="blue" />
                 ) : (
@@ -312,134 +234,19 @@ const RegisterInfo = ({ navigation, route }) => {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal> */}
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalAuthCode}
-        onRequestClose={toggleModalAuthCode}
-      >
-        <View style={styles.modalContainerAuthCode}>
-          <View style={styles.modalAuthCode}>
-            <View style={{ backgroundColor: "#E5E7EB", padding: 10 }}>
-              <Text style={{ textAlign: "center", color: "#000" }}>
-                Vui lòng không chia sẻ mã xác thực để tránh mất tài khoản
-              </Text>
-            </View>
-            <View style={{ flexDirection: "column", height: '70%' }}>
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: 10,
-                }}
-              >
-                <FontAwesome5
-                  name={"envelope"}
-                  size={80}
-                  color="black"
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={{ fontWeight: "bold", color: "#000", marginTop: 10 }}
-                >
-                  Đang gửi mã xác thực đến email: {textEmail}
-                </Text>
-                {isLoading ? (
-                  <ActivityIndicator color="blue" />
-                ) : (
-                  <Text></Text>
-                )}
-              </View>
-              <View style={{ flex: 1, padding: 10 }}>
-                <View style={styles.otpContainer}>
-                  <OTPTextView
-                    handleTextChange={handleOTPChange}
-                    inputCount={6}
-                    keyboardType="numeric"
-                    tintColor="#00FF66"
-                    offTintColor="#00FFFF"
-                    containerStyle={styles.otpContainer}
-                    textInputStyle={styles.otpInput}
-                  />
-                </View>
-
-                <View
-                  style={{
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 20,
-                  }}
-                >
-                  <Pressable
-                    style={{ flexDirection: 'row', width: '45%', justifyContent: 'space-between', height: 40, alignItems: 'center' }}
-
-                  >
-                    <Pressable
-                      style={{
-                        backgroundColor: isPreSendCode ? '#8a57b6' : 'gray', // Đổi màu nút tùy thuộc vào giá trị của isPreSendCode
-                        borderRadius: 10,
-                        width: '65%',
-                        height: '90%',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      onPress={isPreSendCode ? pressPreSendOTP : null} // Kiểm tra isPreSendCode trước khi gọi hàm pressPreSendOTP
-                      disabled={!isPreSendCode} // Vô hiệu hóa nút khi isPreSendCode là false
-                    >
-
-                      <Text style={{ color: 'white', fontWeight: 'bold' }}>Gửi lại mã</Text>
-
-
-                    </Pressable>
-                    <Text style={{ color: "#0091FF", fontWeight: 'bold' }}>{timeLeft === 0 ? "0:0" : formatTime(timeLeft)}</Text>
-                  </Pressable>
-                </View>
-                <View style={{ justifyContent: "space-evenly", alignItems: "center", flexDirection: 'row' }}>
-                  <Pressable
-                    style={{
-                      backgroundColor: "#0091FF",
-                      width: 120,
-                      height: 50,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      borderRadius: 25,
-                    }}
-                    onPress={() => { toggleModalAuthCode() }}
-                  >
-                    <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                      Huỷ
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={{
-                      backgroundColor: "#0091FF",
-                      width: 120,
-                      height: 50,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      borderRadius: 25,
-                    }}
-                    onPress={handleVerifyOTP}
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator color="white" />
-                    ) : (
-                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                        Tiếp tục
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {isModalVisible &&
+        <AuthenOTP
+          textEmail={textEmail}
+          onOtpVertified={(verified) => {
+            setIsOtpVerified(verified);
+          }}
+          onIsModalVisible={isModalVisible}
+          onCloseModel={(close) => {
+            setModalVisible(close)
+          }}
+        />}
 
       <Modal
         animationType="slide"
@@ -537,7 +344,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -604,10 +410,6 @@ const styles = StyleSheet.create({
     height: "70%",
     padding: 10,
     borderRadius: 10,
-  },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
   },
   otpContainer: {
     flexDirection: "row",

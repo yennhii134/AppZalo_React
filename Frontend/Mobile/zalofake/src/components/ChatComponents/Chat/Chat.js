@@ -27,7 +27,7 @@ function Chat({ navigation }) {
   const { isNewSocket, newSocketData, setNewSocketData } = useSocketContext();
   const { showToastSuccess, handleGetTimeInChat, setDataChat, sortTime } = useMessage();
   var isGroupRedux = useSelector(state => state.isGroup.isGroup);
-  
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -43,7 +43,7 @@ function Chat({ navigation }) {
             onPress={() => setModalVisible(!isModalVisible)}
             style={styles.headerIcon}
           >
-            <Ionicons name="add" size={24} color="white" />
+            <Ionicons name="search" size={24} color="white" />
           </Pressable>
         </View>
       ),
@@ -62,7 +62,7 @@ function Chat({ navigation }) {
             focusable={false}
             style={{
               height: 45,
-              width: 300,
+              width: 200,
               marginLeft: 25,
               fontSize: 16,
             }}
@@ -89,11 +89,11 @@ function Chat({ navigation }) {
         (participant) => participant.phone !== authUser.phone
       );
       return {
-        _id: friend?._id,
+        _id: friend._id,
         conversation: conversation,
-        name: friend?.profile.name,
-        avatar: friend?.profile.avatar?.url || "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-        background: friend?.profile.background?.url || "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
+        name: friend.profile.name,
+        avatar: friend.profile.avatar.url ,
+        background: friend.profile.background.url,
         lastMessage: conversation?.lastMessage,
         tag: conversation.tag,
       };
@@ -414,7 +414,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginRight: 10,
   },
   modalButtonContainer1: {
     flexDirection: "row",

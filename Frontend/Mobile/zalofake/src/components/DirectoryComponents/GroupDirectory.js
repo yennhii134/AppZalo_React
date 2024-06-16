@@ -327,7 +327,7 @@ const GroupDirectory = ({ navigation }) => {
             <Text style={styles.groupHeaderText}>Nhóm đang tham gia ({lengthGroup})</Text>
             <Pressable style={styles.sortButton}>
               <Ionicons
-                name={"ios-swap-vertical-outline"}
+                name={"swap-vertical"}
                 size={25}
                 color={"#979797"}
               />

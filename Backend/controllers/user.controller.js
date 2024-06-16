@@ -100,6 +100,24 @@ exports.checkUserByEmail = async (req, res) => {
   }
 };
 
+exports.checkUserByPhone = async (req, res) => {
+  const phone = req.body.phone;
+  try {
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "Can't found User with this phone  !" });
+    }
+    return res.status(200).json({ message: "User found" });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(400)
+      .json({ message: "Some error internal server, please try again !" });
+  }
+};
+
 exports.uploadAvatar = async (req, res) => {
   try {
     const token = req.headers.authorization.split(" ")[1];
@@ -242,7 +260,7 @@ exports.sendRequestAddFriend = async (req, res) => {
       io.to(reciverSocketId.socket_id).emit("receive-request-add-friend", {
         sender: {
           userId: userId,
-          name: user.profile.name,
+          profile: user.profile,
         },
       });
     }
@@ -320,7 +338,7 @@ exports.acceptRequestAddFriend = async (req, res) => {
       io.to(reciverSocketId.socket_id).emit("accept-request-add-friend", {
         sender: {
           userId: userId,
-          name: user.profile.name,
+          profile: user.profile,
         },
       });
     }
@@ -359,7 +377,7 @@ exports.rejectRequestAddFriend = async (req, res) => {
       io.to(reciverSocketId.socket_id).emit("reject-request-add-friend", {
         sender: {
           userId: userId,
-          name: user.profile.name,
+          profile: user.profile,
         },
       });
     }
@@ -372,11 +390,11 @@ exports.rejectRequestAddFriend = async (req, res) => {
 
 exports.unfriend = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { friendId } = req.body;
     const token = req.headers.authorization.split(" ")[1];
     const userId = getUserIdFromToken(token);
     const user = await User.findById(userId);
-    const friend = await User.findOne({ phone });
+    const friend = await User.findById(friendId);
 
     if (!user || !friend) {
       return res.status(404).json({ message: "User not found" });

@@ -39,8 +39,6 @@ const Message = ({ navigation, route }) => {
   const [modalImage, setModalImage] = useState(false);
   const [chats, setChats] = useState([]);
   const scrollViewRef = useRef();
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [isLoad, setIsLoad] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { renderMessageContent, renderMessageContentReply, showToastSuccess, showToastError, handleGetTimeInMessage, addMessage, sendMessage } = useMessage();
@@ -278,66 +276,12 @@ const Message = ({ navigation, route }) => {
     }
     fetchSocket()
   }, [isNewSocket, newSocketData]);
-  // useEffect(() => {
-  //   // if (scrollViewRef.current && contentHeight > scrollViewHeight && !isLoad) {
-  //   //   const offset = contentHeight - scrollViewHeight;
-  //   //   setIsLoad(true)
-  //   //   scrollViewRef.current.scrollTo({ x: 0, y: offset, animated: true });
-  //   // }
 
-  // }, [contentHeight, scrollViewHeight]);
-
-
-  // // Khôi phục vị trí cuộn của ScrollView
-  // const restoreScrollPosition = () => {
-  //   if (scrollViewRef.current) {
-  //     scrollViewRef.current.measure((x, y, width, height, pageX, pageY) => {
-  //       scrollViewRef.current.scrollTo({ x: 0, y: height + scrollViewHeight, animated: false });
-
-  //     });
-  //   }
-  // };
-  // const handleScrollToTop = () => {
-  //   setIsLoading(true)
-  //   const fetchChats = async () => {
-  //     try {
-  //       // const response = await axiosInstance.get(`/chats/getHistoryMessage/${user._id}?lastTimestamp=${lastTimestamp}`);
-  //       const response = await axiosInstance.get(`/conversations/get/messages/${conver.conversation._id}`);
-  //       const reversedChats = response.data;//.reverse();
-
-  //       // if (reversedChats && reversedChats.length > 0) {
-  //       //   setChats(prevChats => [...reversedChats, ...prevChats]);
-  //       //   restoreScrollPosition();
-  //       //   const lastElement = reversedChats[0]
-  //       //   setLastTimestamp(lastElement.timestamp)
-  //       // }
-  //       setIsLoading(false)
-
-  //     } catch (error) {
-  //       console.log(error);
-  //     }
-  //   };
-  //   fetchChats();
-
-  // };
-  // const handleScroll = (event) => {
-  //   const { y } = event.nativeEvent.contentOffset;
-  //   if (y === 0) {
-  //     handleScrollToTop();
-  //   }
-  // };
   const handlePressIn = (message) => {
     setMessageSelected(message)
     setModalVisible(true)
   };
 
-  const removeItemById = (array, idToRemove) => {
-    const indexToRemove = array.findIndex(item => item._id === idToRemove);
-    if (indexToRemove !== -1) {
-      array.splice(indexToRemove, 1);
-    }
-    return array;
-  };
   const handleDeleteMess = () => {
     setIsLoadThuHoi(true)
     handleDelete(`/chats/${messageSelected.chat._id}/delete`, "Thu hồi thành công")

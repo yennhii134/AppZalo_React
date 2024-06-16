@@ -30,11 +30,51 @@ const useUpdate = () => {
       }
     } catch (error) {
       console.error("error: ", error);
-    } 
+    }
   };
 
+  const uploadImageProfile = async (type, selectedImage) => {
+    let typeUpload, nameImage, apiUpload
+    if (type === "Avatar") {
+      typeUpload = "avatar"
+      nameImage = "avatar.jpg"
+      apiUpload = "upload-avatar"
+    } else {
+      typeUpload = "background"
+      nameImage = "background.jpg"
+      apiUpload = "upload-background"
+    }
+    try {
+      const formData = new FormData();
+      formData.append(typeUpload, {
+        uri: selectedImage,
+        type: "image/jpeg",
+        name: nameImage,
+      });
+      const response = await axiosInstance.post(
+        `/users/${apiUpload}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      if (response.status === 200) {
+        const responseJson = response.request._response;
+        // // Phân tích chuỗi JSON thành đối tượng JavaScript
+        const responseUrl = JSON.parse(responseJson);
+        // Lấy URL của avatar từ đối tượng phân tích
+        return responseUrl;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.log(error);
+    }
 
-  return { updateProfile };
+  }
+  return { updateProfile, uploadImageProfile };
 };
 
 export default useUpdate;

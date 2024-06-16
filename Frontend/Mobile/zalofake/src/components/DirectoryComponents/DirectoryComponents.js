@@ -20,7 +20,6 @@ const DirectoryComponents = ({ navigation }) => {
               name="person-add-outline"
               size={22}
               color="white"
-            // style={{ marginRight: 10 }}
             />
           </Pressable>
         </View>
@@ -39,7 +38,7 @@ const DirectoryComponents = ({ navigation }) => {
             }}
             style={{
               height: 45,
-              width: 300,
+              width: 200,
               marginLeft: 25,
               fontSize: 16,
             }}

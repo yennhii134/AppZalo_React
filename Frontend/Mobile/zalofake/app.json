@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "ccfc0ff1-f19f-4c83-abbd-867f0fb024af"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.yennhi1342.zalofake"
+    }
+  }
+}

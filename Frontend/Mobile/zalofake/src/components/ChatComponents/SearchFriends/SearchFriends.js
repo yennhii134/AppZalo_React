@@ -9,20 +9,20 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import axiosInstance from "../../../api/axiosInstance";
-import avatarGroup from '../../../../assets/avatarGroup.png'
 import useConversation from "../../../hooks/useConversation";
+import { useSelector } from "react-redux";
+import { selectFriends } from "../../../redux/stateFriendsSlice";
+import { selectGroups } from "../../../redux/stateGroupsSlice";
 
 function SearchFriends({ navigation }) {
-  const [friends, setFriends] = useState([]);
-  const [groups, setGroups] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedFriendIndex] = useState(null);
   const [isSearch, setIsSearch] = useState(0)
   const [listFilter, setListFilter] = useState([])
-  const [avatarGr] = useState(avatarGroup)
   const { handleFriendMessage } = useConversation();
   const searchInputRef = useRef(null);
+  const friends = useSelector(selectFriends);
+  const groups = useSelector(selectGroups);
 
   useEffect(() => {
     navigation.setOptions({
@@ -71,20 +71,6 @@ function SearchFriends({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const responseFriend = await axiosInstance.get("/users/get/friends");
-        const responseGroup = await axiosInstance.get("/groups/all")
-        setGroups(responseGroup.data)
-        setFriends(responseFriend.data.friends);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    fetchFriends();
-  }, []);
-
-  useEffect(() => {
     if (searchKeyword === '') {
       setIsSearch(0)
     }
@@ -131,15 +117,14 @@ function SearchFriends({ navigation }) {
           style={[styles.friendItem, index === selectedFriendIndex && { backgroundColor: "#e0e0e0", },]}>
           <View style={styles.friendInfo}>
             <Image
-              source={item?.avatar?.url === "https://res.cloudinary.com/dq3pxd9eq/image/upload/v1715763881/Zalo_Fake_App/qhncxk41jtp39iknujyz.png" ? avatarGr : {
+              source={{
                 uri:
-                  item?.profile?.avatar?.url ||
-                  item?.avatar?.url ||
-                  "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
+                  item.profile.avatar.url ||
+                  item.avatar.url
               }}
               style={styles.friendAvatar}
             />
-            <Text style={styles.friendName}>{item?.profile?.name || item?.groupName}</Text>
+            <Text style={styles.friendName}>{item.profile.name || item.groupName}</Text>
           </View>
         </Pressable>
       </View>)

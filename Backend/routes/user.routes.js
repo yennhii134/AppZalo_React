@@ -7,6 +7,7 @@ const {
   updateUser,
   getUserByPhoneOrId,
   checkUserByEmail,
+  checkUserByPhone,
   sendRequestAddFriend,
   acceptRequestAddFriend,
   unfriend,
@@ -28,6 +29,7 @@ router.get("/get/random-not-friends", protect, getRandomUsersNotFriend);
 
 //post methods
 router.post("/check-email", checkUserByEmail);
+router.post("/check-phone", checkUserByPhone);
 router.post("/update-profile", protect, updateUser);
 router.post("/send-add-friend", protect, sendRequestAddFriend);
 router.post("/accept-add-friend", protect, acceptRequestAddFriend);

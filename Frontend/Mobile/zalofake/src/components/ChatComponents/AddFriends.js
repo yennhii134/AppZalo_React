@@ -9,15 +9,15 @@ import {
   ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Toast from "react-native-toast-message";
 import useFriend from "../../hooks/useFriend";
 import { useAuthContext } from "../../contexts/AuthContext";
+import useToast from "../../hooks/useToast";
+import { useSelector } from "react-redux";
+import { selectFriends } from "../../redux/stateFriendsSlice";
 
 const AddFriends = () => {
   const { authUser, reloadAuthUser } = useAuthContext();
   const {
-    friends,
-    getAllFriends,
     getFriendByPhone,
     addFriend,
     acceptFriend,
@@ -26,38 +26,23 @@ const AddFriends = () => {
     cancelFriendRequest,
   } = useFriend();
 
-  const [friendList, setFriendList] = useState([]);
   const [phone, setPhone] = useState("");
   const [searchedUser, setSearchedUser] = useState(null);
   const [sentRequest, setSentRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    const fetchFriends = async () => {
-      await getAllFriends();
-    };
-    fetchFriends();
-  }, [authUser]);
-  useEffect(() => {
-    setFriendList(friends);
-  }, [friends]);
+  const { showToastError, showToastSuccess } = useToast()
+  const friends = useSelector(selectFriends);
 
   const handleSearch = async () => {
     if (phone === "") {
-      Toast.show({
-        text1: "Vui lòng nhập số điện thoại để tìm kiếm",
-        type: "error",
-      });
+      showToastError("Vui lòng nhập số điện thoại để tìm kiếm");
       return;
     }
 
     const currentUserPhone = authUser.phone;
 
     if (phone === currentUserPhone) {
-      Toast.show({
-        text1: "Số điện thoại tài khoản hiện tại",
-        type: "info",
-      });
+      showToastError("Số điện thoại tài khoản hiện tại");
       return;
     }
 
@@ -66,23 +51,19 @@ const AddFriends = () => {
     if (userSearch) {
       setSearchedUser(userSearch);
     }
-    // setLoading(false);
   };
 
   const handleAddFriend = async (friend) => {
     setIsLoading(true)
     try {
       await addFriend(friend.phone);
-      Toast.show({
-        text1: "Đã gửi lời mời kết bạn",
-        type: "success",
-      });
+      showToastSuccess("Đã gửi lời mời kết bạn");
       setIsLoading(false)
       setSentRequest(true);
       reloadAuthUser();
     } catch (error) {
       console.log(error);
-      Toast.show("Gửi lời mời không thành công!");
+      showToastError("Gửi lời mời không thành công!");
       setIsLoading(false)
     }
   };
@@ -90,16 +71,13 @@ const AddFriends = () => {
     setIsLoading(true)
     try {
       await cancelFriendRequest(friend.phone);
-      Toast.show({
-        text1: "Đã hủy lời mời kết bạn",
-        type: "success",
-      });
+      showToastSuccess("Đã hủy lời mời kết bạn");
       setSentRequest(true);
       setIsLoading(false)
       reloadAuthUser();
     } catch (error) {
       console.log(error);
-      Toast.show("Hủy kết bạn không thành công!");
+      showToastError("Hủy kết bạn không thành công!");
       setIsLoading(false)
     }
   };
@@ -107,47 +85,38 @@ const AddFriends = () => {
   const handleAcceptFriend = async (friend) => {
     try {
       await acceptFriend(friend.phone);
-      Toast.show({
-        text1: "Đã chấp nhận lời mời kết bạn",
-        type: "success",
-      });
+      showToastSuccess("Đã chấp nhận lời mời kết bạn");
       reloadAuthUser();
     } catch (error) {
       console.log(error);
-      Toast.show("Chấp nhận lời mời kết bạn thất bại!");
+      showToastError("Chấp nhận lời mời kết bạn thất bại!");
     }
   };
 
   const handleRejectFriend = async (friend) => {
     try {
       await rejectFriend(friend.phone);
-      Toast.show({
-        text1: "Đã từ chối lời mời kết bạn",
-        type: "info",
-      });
+      showToastSuccess("Đã từ chối lời mời kết bạn");
       reloadAuthUser();
     } catch (error) {
       console.log(error);
-      Toast.show("Từ chối lời mời kết bạn thất bạn");
+      showToastError("Từ chối lời mời kết bạn thất bạn");
     }
   };
 
   const handleUnFriend = async (friend) => {
     try {
       await unFriend(friend.phone);
-      Toast.show({
-        text1: "Đã hủy kết bạn",
-        type: "info",
-      });
+      showToastSuccess("Đã hủy kết bạn");
       reloadAuthUser();
     } catch (error) {
       console.log(error);
-      Toast.show("Hủy kết bạn thất bại!");
+      showToastError("Hủy kết bạn thất bại!");
     }
   };
 
   const renderFriendItem = ({ item }) => {
-    const isFriend = friendList.some((f) => f.id === item.id);
+    const isFriend = friends.some((f) => f.userId === item.id);
 
     const isSent = authUser?.requestSent?.includes(item.id);
     const isReceived = authUser?.requestReceived?.includes(item.id);
@@ -155,7 +124,7 @@ const AddFriends = () => {
     return (
       <View
         style={{ flexDirection: "row", alignItems: "center", padding: 10, borderBottomWidth: 1, }}>
-        <Image source={{ uri: item?.avatar || "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png", }}
+        <Image source={{ uri: item.profile.avatar.url }}
           style={{ width: 50, height: 50, borderRadius: 25 }} />
         <Text style={{ marginLeft: 10 }}>{item.profile.name}</Text>
         {isFriend ? (
@@ -175,16 +144,16 @@ const AddFriends = () => {
             )}
           </Pressable>
         ) : isReceived ? (
-          <View style={{ flexDirection: "row", marginLeft: "auto" }}>
+          <View style={{ flexDirection: "row", marginLeft: "auto", justifyContent: 'space-evenly', width: '55%' }}>
+            <Pressable
+              onPress={() => handleRejectFriend(item)}
+              style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "red", }}>
+              <Text style={{ color: "white" }}>Từ chối</Text>
+            </Pressable>
             <Pressable
               onPress={() => handleAcceptFriend(item)}
               style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "green", }}>
-              <Text style={{ color: "green" }}>Chấp nhận</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleRejectFriend(item)}
-              style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "yellow", }}>
-              <Text style={{ color: "white" }}>Từ chối</Text>
+              <Text style={{ color: "white" }}>Chấp nhận</Text>
             </Pressable>
           </View>
         ) : (

@@ -1,9 +1,12 @@
 import { View, Text, Pressable } from "react-native";
-import React, { useEffect } from "react";
-import { useAuthContext } from "../../contexts/AuthContext";
+import React, { useEffect, useState } from "react";
+import { useAuthContext } from "../../../contexts/AuthContext";
+import ModalUpdateImageProfile from "./ModalUpdateImageProfile";
 
 const PersonalDetail = ({ navigation }) => {
   const { authUser } = useAuthContext();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [type, setType] = useState("")
 
   useEffect(() => {
     navigation.setOptions({
@@ -26,6 +29,10 @@ const PersonalDetail = ({ navigation }) => {
     });
   }, [navigation]);
 
+  const openModalUpdateImage = (typeUpload) => {
+    setType(typeUpload)
+    setModalVisible(true)
+  }
   return (
     <View style={{ backgroundColor: "white", height: "100%" }}>
       {/* Body */}
@@ -45,30 +52,6 @@ const PersonalDetail = ({ navigation }) => {
         >
           <Text style={{ fontSize: 16 }}>Thông tin</Text>
         </Pressable>
-        {/* <Pressable
-          style={{
-            marginLeft: 2,
-            marginTop: 2,
-            paddingVertical: 10,
-            paddingHorizontal: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: "#ccc",
-          }}
-        >
-          <Text style={{ fontSize: 16 }}>Đổi ảnh đại diện</Text>
-        </Pressable>
-        <Pressable
-          style={{
-            marginLeft: 2,
-            marginTop: 2,
-            paddingVertical: 10,
-            paddingHorizontal: 20,
-            borderBottomWidth: 1,
-            borderBottomColor: "#ccc",
-          }}
-        >
-          <Text style={{ fontSize: 16 }}>Đổi ảnh bìa</Text>
-        </Pressable> */}
         <Pressable
           style={{
             marginLeft: 2,
@@ -93,6 +76,42 @@ const PersonalDetail = ({ navigation }) => {
         >
           <Text style={{ fontSize: 16 }}>Ví của tôi</Text>
         </Pressable>
+        <Pressable
+          onPress={() => openModalUpdateImage("Avatar")}
+          style={{
+            marginLeft: 2,
+            marginTop: 2,
+            paddingVertical: 10,
+            paddingHorizontal: 20,
+            borderBottomWidth: 1,
+            borderBottomColor: "#ccc",
+          }}
+        >
+          <Text style={{ fontSize: 16 }}>Đổi ảnh đại diện</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => openModalUpdateImage("Background")}
+          style={{
+            marginLeft: 2,
+            marginTop: 2,
+            paddingVertical: 10,
+            paddingHorizontal: 20,
+            borderBottomWidth: 1,
+            borderBottomColor: "#ccc",
+          }}
+        >
+          <Text style={{ fontSize: 16 }}>Đổi ảnh bìa</Text>
+        </Pressable>
+        {
+          modalVisible &&
+          <ModalUpdateImageProfile
+            onOpen={modalVisible}
+            type={type}
+            isUpdate={true}
+            onClose={(close) => setModalVisible(close)}
+            renderImage={null}
+          />
+        }
       </View>
       <View
         style={{ backgroundColor: "#f0f0f0", height: 2, width: "100%" }}
@@ -166,6 +185,7 @@ const PersonalDetail = ({ navigation }) => {
           <Text style={{ fontSize: 16 }}>Cài đặt chung</Text>
         </Pressable>
       </View>
+
     </View>
   );
 };

@@ -75,11 +75,7 @@ const Info = ({ navigation }) => {
         >
           <View style={styles.avatarContainer}>
             <Image
-              source={{
-                uri:
-                  authUser?.profile?.avatar?.url ||
-                  "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-              }}
+              source={{ uri: authUser.profile.avatar.url }}
               style={styles.avatar}
             ></Image>
           </View>

@@ -5,21 +5,30 @@ const useToast = () => {
         Toast.show({
             text1: notice,
             type: "success",
-            topOffset: 0,
-            position: "bottom",
+            top: 30,
+            position: "relative",
         });
     };
     const showToastError = (notice) => {
         Toast.show({
             text1: notice,
             type: "error",
-            topOffset: 0,
-            position: "bottom",
+            top: 30,
+            position: "relative",
+        });
+    };
+    const showToastFriendRequest = (avatar, name, text, navigation, screen) => {
+        Toast.show({
+            type: 'tomatoToast',
+            props: { avatar, name, text, navigation, screen },
+            top: 30,
+            position: "relative",
         });
     };
     return {
         showToastError,
-        showToastSuccess
+        showToastSuccess,
+        showToastFriendRequest
     }
 }
 export default useToast;

@@ -4,79 +4,67 @@ import {
   Text,
   Pressable,
   Image,
-  ScrollView,
   StyleSheet,
   Modal,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import axiosInstance from "../../api/axiosInstance";
 import { useAuthContext } from "../../contexts/AuthContext";
 import useFriend from "../../hooks/useFriend";
 import useConversation from "../../hooks/useConversation";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useSocketContext } from "../../contexts/SocketContext";
+import useToast from "../../hooks/useToast";
+import { deleteFriend, selectFriends } from "../../redux/stateFriendsSlice";
+import { SwipeListView } from 'react-native-swipe-list-view';
 
 const FriendDirectory = ({ navigation }) => {
   const { handleFriendMessage } = useConversation();
-  const { unFriend, getFriendById, showSuccessToast} = useFriend();
-  const [friends, setFriends] = useState([]);
+  const { unFriend, getFriendById } = useFriend();
+  const { showToastSuccess } = useToast()
   const { reloadAuthUser } = useAuthContext();
-  const [totalFriends, setTotalFriends] = useState("");
-  const [modalVisible, setModalVisible] = useState(false);
+  const [modalUnFriend, setModalUnFriend] = useState(false);
   const [modalPosition, setModalPosition] = useState({});
-  const [selectedFriendPhone, setSelectedFriendPhone] = useState(null);
-  var isGroupRedux = useSelector(state => state.isGroup.isGroup);
+  const [selectedFriendId, setSelectedFriendPhone] = useState(null);
   const { socket } = useSocketContext()
+  const friends = useSelector(selectFriends);
+  const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFriendTabActive, setIsFriendTabActive] = useState(true);
 
-  const toggleModal = (index, friendPhone) => {
-    setSelectedFriendPhone(friendPhone);
+  const toggleModal = (index, friendId) => {
+    setSelectedFriendPhone(friendId);
     setModalPosition({ top: index * 70 + 300 });
-    setModalVisible(!modalVisible);
+    setModalUnFriend(!modalUnFriend);
   };
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const response = await axiosInstance.get("/users/get/friends");
-        setFriends(response.data.friends);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    fetchFriends();
-  }, [isGroupRedux]);
-
-  useEffect(() => {
-    setTotalFriends(friends.length);
-  }, [friends]);
-
+  console.log("friends", friends);
   const handleUnFriend = async () => {
-    if (!selectedFriendPhone) return;
+    if (!selectedFriendId) return;
 
     try {
-      await unFriend(selectedFriendPhone);
-      showSuccessToast("Huỷ kết bạn thành công")
-      // Cập nhật danh sách bạn bè sau khi hủy kết bạn thành công
-      const updatedFriends = friends.filter(
-        (friend) => friend.phone !== selectedFriendPhone);
-      setFriends(updatedFriends);
-      // Thực hiện reloadAuthUser ở đây nếu cần
-      reloadAuthUser();
+      setIsLoading(true)
+      const isUnFriend = await unFriend(selectedFriendId);
+      if (isUnFriend) {
+        showToastSuccess("Huỷ kết bạn thành công")
+        dispatch(deleteFriend(selectedFriendId))
+      }
     } catch (error) {
       console.log(error);
-      showSuccessToast("Hủy kết bạn thất bại!");
+      showToastSuccess("Hủy kết bạn thất bại!");
     }
-    setModalVisible(false);
+    setIsLoading(false)
+    setModalUnFriend(false);
   };
 
   const handlePageNavigation = async (friend) => {
-      const response = await handleFriendMessage(friend)
-      navigation.navigate("Message", { chatItem: response });
+    const response = await handleFriendMessage(friend)
+    navigation.navigate("Message", { chatItem: response });
   };
 
   useEffect(() => {
-    if(socket){
+    if (socket) {
       socket.on("accept-request-add-friend", async (sender) => {
-         // console.log("accept-request-sender", sender);
+        // console.log("accept-request-sender", sender);
         const getUser = await getFriendById(sender.sender.userId)
         const newFriend = {
           email: getUser.email,
@@ -97,8 +85,59 @@ const FriendDirectory = ({ navigation }) => {
     }
   }, [socket])
 
+
+  const renderFriend = ({ index, item }) => (
+    <View style={styles.friendRow}>
+      <Pressable
+        style={styles.friendItem}
+        onPress={() => handlePageNavigation(item)}
+      >
+        <View style={styles.friendInfo}>
+          <Image source={{ uri: item.profile.avatar.url }}
+            style={styles.friendAvatar}
+          />
+          <Text style={styles.friendName}>{item.profile.name}</Text>
+        </View>
+        <View style={styles.friendActions}>
+          <View style={styles.actionIcon}>
+            <Ionicons name={"call-outline"} size={25} color={"black"} />
+          </View>
+          <View style={styles.actionIcon}>
+            <Ionicons
+              name={"videocam-outline"}
+              size={25}
+              color={"black"}
+            />
+          </View>
+          <Pressable
+            style={styles.actionIcon}
+            onPress={() => toggleModal(index, item.userId)}
+          >
+            <Ionicons
+              name={"ellipsis-vertical"}
+              size={25}
+              color={"black"}
+            />
+          </Pressable>
+        </View>
+      </Pressable>
+    </View>
+  )
+
+  const renderChoose = () => {
+    return (
+      <View style={styles.rowBack}>
+        <TouchableOpacity style={[styles.backRightBtn, styles.backRightBtnLeft]}>
+          <Text style={styles.backTextWhite}>Thêm</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.backRightBtn, styles.backRightBtnRight]}>
+          <Text style={styles.backTextWhite}>Xoá</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.topSection}>
         <Pressable
           style={styles.buttonRow}
@@ -110,7 +149,7 @@ const FriendDirectory = ({ navigation }) => {
       </View>
       <View style={styles.buttonBar}>
         <Pressable style={styles.roundedButton}>
-          <Text style={styles.whiteText}>Tất cả {totalFriends}</Text>
+          <Text style={styles.whiteText}>Tất cả {friends.length}</Text>
         </Pressable>
       </View>
 
@@ -119,56 +158,22 @@ const FriendDirectory = ({ navigation }) => {
         <View style={styles.friendListHeader}>
           <Text style={styles.sectionTitle}>#</Text>
         </View>
-        {friends.map((friend, index) => (
-          <View key={index} style={styles.friendRow}>
-            <Pressable
-              style={styles.friendItem}
-              onPress={() => handlePageNavigation(friend)}
-            >
-              <View style={styles.friendInfo}>
-                <Image
-                  source={{
-                    uri:
-                      friend?.profile?.avatar?.url ||
-                      "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-                  }}
-                  style={styles.friendAvatar}
-                />
-                <Text style={styles.friendName}>{friend.profile.name}</Text>
-              </View>
-              <View style={styles.friendActions}>
-                <View style={styles.actionIcon}>
-                  <Ionicons name={"call-outline"} size={25} color={"black"} />
-                </View>
-                <View style={styles.actionIcon}>
-                  <Ionicons
-                    name={"videocam-outline"}
-                    size={25}
-                    color={"black"}
-                  />
-                </View>
-                <Pressable
-                  style={styles.actionIcon}
-                  onPress={() => toggleModal(index, friend.phone)}
-                >
-                  <Ionicons
-                    name={"ellipsis-vertical"}
-                    size={25}
-                    color={"black"}
-                  />
-                </Pressable>
-              </View>
-            </Pressable>
-          </View>
-        ))}
+        <SwipeListView
+          data={friends}
+          renderItem={renderFriend}
+          renderHiddenItem={renderChoose}
+          rightOpenValue={-225}
+          disableRightSwipe={!isFriendTabActive} // disable khi tab không active
+
+        />
         <Modal
           animationType="slide"
           transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(!modalVisible)}>
+          visible={modalUnFriend}
+          onRequestClose={() => setModalUnFriend(!modalUnFriend)}>
           <Pressable
             style={styles.modalBackdrop}
-            onPress={() => setModalVisible(!modalVisible)}>
+            onPress={() => setModalUnFriend(!modalUnFriend)}>
             <View
               style={[styles.centeredView, modalPosition, { position: "absolute", right: 10 }]}>
               <Pressable
@@ -181,7 +186,7 @@ const FriendDirectory = ({ navigation }) => {
           </Pressable>
         </Modal>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 
@@ -292,6 +297,33 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.0)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  rowBack: {
+    alignItems: 'center',
+    backgroundColor: '#DDD',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingLeft: 15,
+  },
+  backRightBtn: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    width: 75,
+  },
+  backRightBtnLeft: {
+    backgroundColor: 'blue',
+    right: 75,
+  },
+  backRightBtnRight: {
+    backgroundColor: 'red',
+    right: 0,
+  },
+  backTextWhite: {
+    color: '#FFF',
   },
 });
 

@@ -115,7 +115,19 @@ exports.registerUser = async (req, res) => {
       phone,
       email,
       password: await hashPassword(password),
-      profile: { name, gender, dob: formatDOB },
+      profile: { 
+        name, 
+        gender, 
+        dob: formatDOB,
+        avatar: {
+          url: "https://res.cloudinary.com/dg1u2asad/image/upload/v1718289821/Zalo_App/user_profile_avatar_lexzhm.jpg",
+          public_id: "user_avatar"
+        },
+        background: {
+          url: "https://res.cloudinary.com/dg1u2asad/image/upload/v1718290240/Zalo_App/user_profile_background_w7fhjd.png",
+          public_id: "user_background"
+        }
+      },
       createdAt: Date.now(),
     });
     return res.status(201).json({

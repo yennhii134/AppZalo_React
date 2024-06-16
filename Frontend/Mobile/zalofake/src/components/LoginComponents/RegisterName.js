@@ -9,18 +9,20 @@ import {
   StyleSheet,
   ActivityIndicator
 } from "react-native";
-import useRegister from "../../hooks/useRegister";
+import useAuth from "../../hooks/useAuth";
 
 const RegisterName = ({ navigation }) => {
   const [textName, setTextName] = useState("");
   const [textPhone, setTextPhone] = useState("");
   const [textEmail, setTextEmail] = useState("");
-  const { checkMail } = useRegister();
+  const { checkMail, checkPhone } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isHiddenRegex, setIsHiddenRegex] = useState([])
 
   const handlePressablePress = async () => {
     const newError = []
+    const isCheckMail = await checkMail(textEmail);
+    const isCheckPhone = await checkPhone(textPhone);
     if (!/^([a-zA-Zá-ỹÁ-Ỹ\s]{2,40})$/.test(textName)) {
       newError.push('name')
     }
@@ -30,25 +32,26 @@ const RegisterName = ({ navigation }) => {
     if (!textEmail.trim().toLowerCase().endsWith("@gmail.com") || textEmail.length < 15) {
       newError.push('invalid email')
     }
+    if (!isCheckPhone) {
+      newError.push('phone exists')
+    }
+    if (!isCheckMail) {
+      newError.push('email exists')
+    }
     if (newError.length > 0) {
       setIsHiddenRegex(newError)
     }
     else {
       setIsLoading(true)
       setIsHiddenRegex([])
-      const systemOTP = await checkMail(textEmail);
-      if (systemOTP) {
-        setIsLoading(false)
+      if (isCheckMail && isCheckPhone) {
         navigation.navigate("RegisterInfo", { name: textName, textPhone: textPhone, textEmail: textEmail });
       }
-      else {
-        newError.push('email exists')
-        setIsHiddenRegex(newError)
-      }
+   
       setIsLoading(false)
     }
   };
-  const renderRegex = (error, message) => {
+  const renderCheckValue = (error, message) => {
     return (
       isHiddenRegex.map((regex, index) => (
         regex === error &&
@@ -73,7 +76,7 @@ const RegisterName = ({ navigation }) => {
             style={styles.input}
           ></TextInput>
         </View>
-        {renderRegex('name', '* Tên là chữ và ít nhất 2 kí tự')}
+        {renderCheckValue('name', '* Tên là chữ và ít nhất 2 kí tự')}
         <View style={styles.inputContainerPhone}>
           <CountryDropdown />
           <TextInput
@@ -85,7 +88,8 @@ const RegisterName = ({ navigation }) => {
             keyboardType="numeric"
           />
         </View>
-        {renderRegex('phone', '* Số điện thoại phải từ 8 đến 20 chữ số')}
+        {renderCheckValue('phone', '* Số điện thoại phải từ 8 đến 20 chữ số')}
+        {renderCheckValue('phone exists', '* Số điện thoại đã tồn tại')}
         <View style={styles.inputContainer}>
           <TextInput
             id="email"
@@ -96,8 +100,8 @@ const RegisterName = ({ navigation }) => {
             onChangeText={(text) => { setTextEmail(text) }}
           />
         </View>
-        {renderRegex('invalid email', '* Email phải có định dạng @gmail.com và phải có ít nhất 15 ký tự')}
-        {renderRegex('email exists', '* Email đã tồn tại')}
+        {renderCheckValue('invalid email', '* Email phải có định dạng @gmail.com và phải có ít nhất 15 ký tự')}
+        {renderCheckValue('email exists', '* Email đã tồn tại')}
         <Text style={styles.note_title}>Lưu ý khi đặt tên:</Text>
         <Text style={styles.note}>
           Nên sử dụng tên thật để giúp bạn bè dễ nhận ra bạn

@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Toast from "react-native-toast-message";
 import axiosInstance from "../api/axiosInstance";
 
 const AuthContext = createContext();
@@ -79,7 +78,7 @@ export const AuthContextProvider = ({ children }) => {
     }));
   };
   // Hàm cập nhật bìa mới
-  const updateBia = async (backgroundUrl, publicId) => {
+  const updateBackground = async (backgroundUrl, publicId) => {
     setAuthUser((prevUser) => ({
       ...prevUser,
       profile: {
@@ -115,7 +114,7 @@ export const AuthContextProvider = ({ children }) => {
         refreshToken,
         setRefreshToken,
         updateAvatar,
-        updateBia,
+        updateBackground,
         reloadAuthUser,
       }}
     >
