@@ -50,9 +50,7 @@ exports.sendMessage = async (req, resp) => {
       return values[0];
     });
 
-
     const group = await Group.findById(receiverId).populate("conversation");
-  
     let conversation;
     if (!group) {
       conversation = await Conversation.findOne({

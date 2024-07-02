@@ -6,7 +6,7 @@ import config from "../api/config";
 import { useNavigation } from "@react-navigation/native";
 import useToast from "../hooks/useToast";
 import { useDispatch } from "react-redux";
-import { setIsGroup } from "../redux/stateCreateGroupSlice";
+import { deleteFriend } from "../redux/stateFriendsSlice";
 
 const SocketContext = createContext();
 export const useSocketContext = () => {
@@ -26,7 +26,7 @@ export const SocketContextProvider = ({ children }) => {
   const dispatch = useDispatch()
 
   const connectSocket = (token) => {
-    const newSocket = io(config.socketURL, {
+    const newSocket = io(config.baseURL.replace("/api",""), {
       query: {
         token: token,
       },
@@ -65,7 +65,7 @@ export const SocketContextProvider = ({ children }) => {
       socket.on("accept-request-add-friend", handleFriendAcceptAction);
       socket.on("reject-request-add-friend", handleFriendRejectAction);
       socket.on("cancel-request-add-friend", handleFriendAction);
-      socket.on("unfriend", handleFriendAction);
+      socket.on("unfriend", handleFriendUnAction);
       // socket for chat
       socket.on("new_message", handleNewMessage);
       socket.on("delete_message", handleDeleteMessage);
@@ -86,7 +86,7 @@ export const SocketContextProvider = ({ children }) => {
         socket.off("accept-request-add-friend", handleFriendAcceptAction);
         socket.off("reject-request-add-friend", handleFriendRejectAction);
         socket.off("cancel-request-add-friend", handleFriendAction);
-        socket.off("unfriend", handleFriendAction);
+        socket.off("unfriend", handleFriendUnAction);
         // socket for chat
         socket.off("new_message", handleNewMessage);
         socket.off("delete_message", handleDeleteMessage);
@@ -106,26 +106,25 @@ export const SocketContextProvider = ({ children }) => {
   const handleReceiveFriendRequest = async (sender) => {
     const senderPf = sender.sender.profile
     showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã gửi một yêu cầu kết bạn", navigation, "FriendRequest")
-    dispatch(setIsGroup())
     await reloadAuthUser();
   };
 
   const handleFriendAcceptAction = async (sender) => {
     const senderPf = sender.sender.profile
     showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã chấp nhận yêu cầu kết bạn", navigation, "Contact")
-    dispatch(setIsGroup())
-
     await reloadAuthUser();
   };
   const handleFriendRejectAction = async (sender) => {
-    console.log("reject", sender);
     const senderPf = sender.sender.profile
     showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã từ chối yêu cầu kết bạn", navigation, "Contact")
-    dispatch(setIsGroup())
-
     await reloadAuthUser();
   };
 
+  const handleFriendUnAction = async (sender) => {
+    const senderPf = sender.sender.profile
+    showToastFriendRequest(senderPf.avatar.url, senderPf.name, " đã huỷ kết bạn với bạn", navigation, "Contact")
+    dispatch(deleteFriend(sender.sender.userId))
+  };
   const handleFriendAction = async () => {
     await reloadAuthUser();
   };

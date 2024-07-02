@@ -13,20 +13,10 @@ const useConversation = () => {
         "/conversations/getConversations"
       );
       if (response.status === 200) {
-        const newConversationList = response.data.map((conversation) => {
-          return {
-            _id: conversation._id,
-            participants: conversation.participants,
-            messages: conversation.messages,
-            lastMessage: conversation.lastMessage,
-            tag: conversation.tag,
-          };
-        });
-        setConversations(newConversationList);
+        setConversations(response.data);
       }
     } catch (error) {
       console.log(error);
-      // toast.error("Failed to get conversations");
     }
   };
 
@@ -73,32 +63,23 @@ const useConversation = () => {
       return null;
     }
   };
-  const handleFriendMessage = async (friend) => {
-    let conversation;
-
-    conversation = await getConversationsByParticipants(friend.userId);
-    if (conversation === null) {
-      const conversationNew = {
-        _id: friend.userId,
-        conversation: null,
-        name: friend?.profile.name,
-        avatar: friend?.profile.avatar?.url,
-        background: friend?.profile.background?.url,
-        tag: 'friend',
-      };
-      return conversationNew;
-    }
-    else {
-      const conversationNew = {
-        _id: friend.userId,
-        conversation: conversation,
-        name: friend?.profile.name,
-        avatar: friend?.profile.avatar?.url,
-        background: friend?.profile.background?.url,
-        lastMessage: conversation.lastMessage,
-        tag: conversation.tag,
-      };
-      return conversationNew;
+  const handleMessageNavigation = async (itemChat) => {
+    if (itemChat?.conversation?.tag === 'group') {
+      return {
+        _id: itemChat._id,
+        conversation: itemChat.conversation,
+        chatName: itemChat.groupName,
+        avatar: itemChat.avatar.url,
+        tag: itemChat.conversation.tag
+      }
+    } else {
+      return {
+        _id: itemChat.userId,
+        conversation: await getConversationsByParticipants(itemChat.userId) || null,
+        chatName: itemChat.profile.name,
+        avatar: itemChat.profile.avatar.url,
+        tag: "friend"
+      }
     }
   };
 
@@ -109,7 +90,7 @@ const useConversation = () => {
     deleteConversation,
     getConversationByID,
     getConversationsByParticipants,
-    handleFriendMessage
+    handleMessageNavigation,
   };
 };
 

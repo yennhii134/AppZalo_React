@@ -60,7 +60,7 @@ const DirectoryComponents = ({ navigation }) => {
   }, [navigation]);
 
   return (
-    <Tab.Navigator initialRouteName="FriendDirectory" tabBarPosition="top">
+    <Tab.Navigator initialRouteName="FriendDirectory" tabBarPosition="top" swipeEnabled={false}>
       <Tab.Screen name="FriendDirectory" component={FriendDirectory} />
       <Tab.Screen name="GroupDirectory" component={GroupDirectory} />
     </Tab.Navigator>

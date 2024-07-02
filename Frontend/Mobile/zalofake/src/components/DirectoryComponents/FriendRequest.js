@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, Pressable, Image, StyleSheet, ActivityIndicator } from "react-native";
 import { useAuthContext } from "../../contexts/AuthContext";
 import useFriend from "../../hooks/useFriend";
-import { useDispatch } from "react-redux";
-import { setIsGroup } from "../../redux/stateCreateGroupSlice";
 
 function FriendRequestComponent({ navigation }) {
-  const dispatch = useDispatch();
-
   useEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
@@ -35,10 +31,12 @@ function FriendRequestComponent({ navigation }) {
     });
   }, [navigation]);
 
-  const { authUser, reloadAuthUser } = useAuthContext();
-  const { getFriends, getFriendById, acceptFriend, rejectFriend, cancelFriendRequest, } = useFriend();
+  const { authUser } = useAuthContext();
+  const { getFriendById, acceptFriend, rejectFriend, cancelFriendRequest, } = useFriend();
   const [friendRequests, setFriendRequests] = useState([]);
   const [friendReceived, setFriendReceived] = useState([]);
+  const [loadingStates, setLoadingStates] = useState([]);
+  const states = { ACCEPT: 'ACCEPT', REJECT: 'REJECT', CANCEL: 'CANCEL' };
 
   useEffect(() => {
     if (authUser.requestSent) {
@@ -51,20 +49,40 @@ function FriendRequestComponent({ navigation }) {
     }
   }, [authUser]);
 
+  const setLoading = (userId, state) => {
+    setLoadingStates((prevState) => [
+      ...prevState, {
+        userId,
+        state,
+      }
+    ]);
+  };
+
+  const unSetLoading = (userId) => {
+    setLoadingStates((prevState) =>
+      prevState.filter(item => item.userId !== userId)
+    )
+  }
+  const isLoading = (userId, state) => {
+    return loadingStates.some(item => item.userId === userId && item.state === state)
+  }
   const handleAcceptFriend = async (friend) => {
-    await acceptFriend(friend.phone);
-    dispatch(setIsGroup())
-    await reloadAuthUser();
+    setLoading(friend.userId, states.ACCEPT);
+    await acceptFriend(friend.userId);
+    unSetLoading(friend.userId)
+
   };
 
   const handleRejectFriend = async (friend) => {
-    await rejectFriend(friend.phone);
-    await reloadAuthUser();
+    setLoading(friend.userId, states.REJECT);
+    await rejectFriend(friend.userId);
+    unSetLoading(friend.userId)
   };
 
   const handleCancelFriendRequest = async (friend) => {
-    await cancelFriendRequest(friend.phone);
-    await reloadAuthUser();
+    setLoading(friend.userId, states.CANCEL);
+    await cancelFriendRequest(friend.userId);
+    unSetLoading(friend.userId)
   };
 
   return (
@@ -77,19 +95,15 @@ function FriendRequestComponent({ navigation }) {
         </View>
         <View style={styles.cardsContainer}>
           {friendReceived.map((friendReceived) => (
-            <View key={friendReceived.id} style={styles.card}>
+            <View key={friendReceived.userId} style={styles.card}>
               <View style={styles.cardContent}>
                 <Image
-                  source={{
-                    uri:
-                      friendReceived?.profile.avatar?.url ||
-                      "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-                  }}
+                  source={{ uri: friendReceived.profile.avatar.url }}
                   style={styles.avatar}
                 />
                 <View style={styles.userInfo}>
                   <Text style={styles.name}>{friendReceived.profile.name}</Text>
-                  <Text style={styles.email}>{friendReceived.email}</Text>
+                  <Text style={styles.phone}>{friendReceived.phone}</Text>
                 </View>
               </View>
               <View style={styles.cardActions}>
@@ -97,13 +111,19 @@ function FriendRequestComponent({ navigation }) {
                   style={styles.buttonReject}
                   onPress={() => handleRejectFriend(friendReceived)}
                 >
-                  <Text>Từ chối</Text>
+                  {isLoading(friendReceived.userId, states.REJECT)
+                    ? <ActivityIndicator color='black' size='small' />
+                    : <Text style={{ fontWeight: 'bold' }}>Từ chối</Text>
+                  }
                 </Pressable>
                 <Pressable
                   style={styles.buttonAccept}
                   onPress={() => handleAcceptFriend(friendReceived)}
                 >
-                  <Text>Chấp nhận</Text>
+                  {isLoading(friendReceived.userId, states.ACCEPT)
+                    ? <ActivityIndicator color='black' size='small' />
+                    : <Text style={{ fontWeight: 'bold' }}>Chấp nhận</Text>
+                  }
                 </Pressable>
               </View>
             </View>
@@ -116,7 +136,7 @@ function FriendRequestComponent({ navigation }) {
         </View>
         <View style={styles.cardsContainer}>
           {friendRequests.map((friendRequest) => (
-            <View key={friendRequest.id} style={styles.card}>
+            <View key={friendRequest.userId} style={styles.card}>
               <View style={styles.cardContent}>
                 <Image
                   source={{ uri: friendRequest.profile.avatar.url }}
@@ -131,7 +151,10 @@ function FriendRequestComponent({ navigation }) {
                 style={styles.buttonCancel}
                 onPress={() => handleCancelFriendRequest(friendRequest)}
               >
-                <Text>Hủy yêu cầu</Text>
+                {isLoading(friendReceived.userId, states.CANCEL)
+                  ? <ActivityIndicator color='black' size='small' />
+                  : <Text style={{ fontWeight: 'bold' }}>Hủy yêu cầu</Text>
+                }
               </Pressable>
             </View>
           ))}
@@ -199,7 +222,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "bold",
   },
-  email: {
+  phone: {
     fontSize: 12,
     color: "gray",
   },

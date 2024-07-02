@@ -1,9 +1,13 @@
+import { useDispatch } from "react-redux";
 import axiosInstance from "../api/axiosInstance";
-import { useAuthContext } from "../contexts/AuthContext";
 import useToast from "../hooks/useToast"
+import { deleteFriend } from "../redux/stateFriendsSlice";
+import { useAuthContext } from "../contexts/AuthContext";
+
 const useFriend = () => {
-  const { reloadAuthUser } = useAuthContext();
   const { showToastError, showToastSuccess } = useToast()
+  const dispatch = useDispatch()
+  const { reloadAuthUser } = useAuthContext()
 
   const getFriends = async () => {
     try {
@@ -64,54 +68,63 @@ const useFriend = () => {
       });
       if (response.status === 200) {
         showToastSuccess("Gửi yêu cầu kết bạn thành công");
+        await reloadAuthUser();
+        return true;
       }
     } catch (error) {
       console.log(error);
-      if (error.response.status === 400) {
-        showToastError(error.response.data.message);
-      } else {
-        showToastError("Failed to send friend request");
-      }
+      showToastError("Gửi lời mời thất bại");
+      return false;
     }
   };
 
-  const acceptFriend = async (phone) => {
+  const acceptFriend = async (friendId) => {
     try {
       const response = await axiosInstance.post("/users/accept-add-friend", {
-        phone,
+        friendId,
       });
       if (response.status === 200) {
-        showToastSuccess("Chấp nhận yêu cầu kết bạn thành công");
+        showToastSuccess("Chấp nhập kết bạn thành công")
         await reloadAuthUser();
+        return true;
       }
     } catch (error) {
       console.log(error);
-      showToastError("Chấp nhận yêu cầu kết bạn thất bại");
+      showToastSuccess("Chấp nhập kết bạn thất bại")
+      return false;
     }
   };
 
-  const rejectFriend = async (phone) => {
+  const rejectFriend = async (friendId) => {
     try {
       const response = await axiosInstance.post(
-        "/users/reject-request-add-friend", { phone }
+        "/users/reject-request-add-friend", { friendId }
       );
       if (response.status === 200) {
-        showToastSuccess("Friend request rejected");
+        showToastSuccess("Đã từ chối lời mời kết bạn");
+        await reloadAuthUser();
+        return true;
       }
     } catch (error) {
+      showToastSuccess("Từ chối lời mời kết bạn thất bại");
       console.log(error);
-      showToastError("Failed to reject friend request");
+      return false;
     }
   };
 
-  const cancelFriendRequest = async (phone) => {
+  const cancelFriendRequest = async (friendId) => {
     try {
       const response = await axiosInstance.post(
-        "/users/cancel-request-add-friend", { phone });
+        "/users/cancel-request-add-friend", { friendId });
       if (response.status === 200) {
+        showToastSuccess("Đã hủy lời mời kết bạn");
+        await reloadAuthUser();
+        return true;
       }
     } catch (error) {
       console.log(error);
+      showToastError("Hủy kết bạn thất bại");
+      return false;
     }
   };
 
@@ -121,10 +134,13 @@ const useFriend = () => {
         friendId,
       });
       if (response.status === 200) {
+        dispatch(deleteFriend(friendId))
+        showToastSuccess("Huỷ kết bạn thành công")
         return true;
       }
     } catch (error) {
       console.log(error);
+      showToastSuccess("Hủy kết bạn thất bại");
       return false;
     }
   };

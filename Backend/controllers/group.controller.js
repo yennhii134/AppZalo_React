@@ -32,7 +32,7 @@ exports.createGroup = async (req, res) => {
     const group = await Group.create({
       groupName: name,
       avatar: {
-        url: "https://res.cloudinary.com/dg1u2asad/image/upload/v1718290657/Zalo_App/group_profile_avatar_wlppjc.jpg",
+        url: "https://res.cloudinary.com/dg1u2asad/image/upload/v1718291355/Zalo_App/group_profile_avatar_w3uafg.jpg",
         public_id: "group_avatar",
       },
       conversation: conversation._id,
@@ -216,7 +216,14 @@ exports.getAllGroup = async (req, res) => {
           },
         },
       },
-
+      {
+        $lookup: {
+          from: "users",
+          localField: "conversation.participants",
+          foreignField: "_id",
+          as: "participants",
+        },
+      },
       {
         $project: {
           groupName: 1,
@@ -238,7 +245,18 @@ exports.getAllGroup = async (req, res) => {
           },
           conversation: {
             _id: 1,
-            participants: 1,
+            participants: {
+              $map: {
+                input: "$participants",
+                as: "participant",
+                in: {
+                  profile: "$$participant.profile",
+                  _id: "$$participant._id",
+                  email: "$$participant.email",
+                  phone: "$$participant.phone",
+                },
+              },
+            },
             lastMessage: 1,
             tag: 1,
           },
@@ -696,7 +714,7 @@ exports.makeMemberToAdmin = async (req, res) => {
     group.createBy = user;
     group.admins = group.admins.filter((a) => a.toString() !== uid.user_id);
     await group.save();
-    
+
     group.conversation.participants.forEach(async (member) => {
       if (member.toString() !== uid.user_id) {
         const memderSocketId = await getReciverSocketId(member);

@@ -100,7 +100,6 @@ export const AuthContextProvider = ({ children }) => {
       }
     } catch (error) {
       console.log(error);
-      // Toast.error("Failed to get user information");
       return false;
     }
   };

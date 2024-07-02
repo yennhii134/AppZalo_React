@@ -1,93 +1,47 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   Pressable,
   Image,
   StyleSheet,
-  Modal,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthContext } from "../../contexts/AuthContext";
 import useFriend from "../../hooks/useFriend";
-import useConversation from "../../hooks/useConversation";
-import { useSelector, useDispatch } from "react-redux";
-import { useSocketContext } from "../../contexts/SocketContext";
-import useToast from "../../hooks/useToast";
-import { deleteFriend, selectFriends } from "../../redux/stateFriendsSlice";
+import { useSelector } from "react-redux";
+import { selectFriends } from "../../redux/stateFriendsSlice";
 import { SwipeListView } from 'react-native-swipe-list-view';
+import { useAuthContext } from "../../contexts/AuthContext";
+import useConversation from "../../hooks/useConversation";
 
 const FriendDirectory = ({ navigation }) => {
-  const { handleFriendMessage } = useConversation();
-  const { unFriend, getFriendById } = useFriend();
-  const { showToastSuccess } = useToast()
-  const { reloadAuthUser } = useAuthContext();
-  const [modalUnFriend, setModalUnFriend] = useState(false);
-  const [modalPosition, setModalPosition] = useState({});
-  const [selectedFriendId, setSelectedFriendPhone] = useState(null);
-  const { socket } = useSocketContext()
+  const { unFriend } = useFriend();
   const friends = useSelector(selectFriends);
-  const dispatch = useDispatch();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFriendTabActive, setIsFriendTabActive] = useState(true);
+  const [isLoading, setIsLoading] = useState([]);
+  const { authUser } = useAuthContext();
+  const [listFriends, setListFriends] = useState([])
+  const { handleMessageNavigation } = useConversation();
 
-  const toggleModal = (index, friendId) => {
-    setSelectedFriendPhone(friendId);
-    setModalPosition({ top: index * 70 + 300 });
-    setModalUnFriend(!modalUnFriend);
-  };
-  console.log("friends", friends);
-  const handleUnFriend = async () => {
-    if (!selectedFriendId) return;
+  useEffect(() => {
+    setListFriends(friends.map((item, i) => ({ ...item, key: item.userId })))
+  }, [friends])
 
-    try {
-      setIsLoading(true)
-      const isUnFriend = await unFriend(selectedFriendId);
-      if (isUnFriend) {
-        showToastSuccess("Huỷ kết bạn thành công")
-        dispatch(deleteFriend(selectedFriendId))
-      }
-    } catch (error) {
-      console.log(error);
-      showToastSuccess("Hủy kết bạn thất bại!");
-    }
-    setIsLoading(false)
-    setModalUnFriend(false);
+  const handleUnFriend = async (item) => {
+    setIsLoading((prev) => [...prev, { userId: item.userId }])
+    await unFriend(item.userId);
+    setIsLoading((prev) => prev.filter((itemLoading) => itemLoading.userId !== item.userId))
   };
 
   const handlePageNavigation = async (friend) => {
-    const response = await handleFriendMessage(friend)
-    navigation.navigate("Message", { chatItem: response });
+    const chatItem = await handleMessageNavigation(friend)
+
+    navigation.navigate("Message", { chatItem: chatItem });
   };
 
-  useEffect(() => {
-    if (socket) {
-      socket.on("accept-request-add-friend", async (sender) => {
-        // console.log("accept-request-sender", sender);
-        const getUser = await getFriendById(sender.sender.userId)
-        const newFriend = {
-          email: getUser.email,
-          phone: getUser.phone,
-          profile: getUser.profile,
-          userId: getUser.id
-        }
-        setFriends([...friends, newFriend])
-      })
-      socket.on("unfriend", async (sender) => {
-        // console.log("unfriend-sender", sender);
-        setFriends((prevFriend) => prevFriend.filter((item) => item.userId !== sender.sender.userId))
-      })
-      return () => {
-        socket.off("accept-request-add-friend")
-        socket.off("unfriend")
-      }
-    }
-  }, [socket])
-
-
-  const renderFriend = ({ index, item }) => (
-    <View style={styles.friendRow}>
+  const renderFriend = ({ item }) => (
+    < View style={styles.friendRow} >
       <Pressable
         style={styles.friendItem}
         onPress={() => handlePageNavigation(item)}
@@ -109,33 +63,28 @@ const FriendDirectory = ({ navigation }) => {
               color={"black"}
             />
           </View>
-          <Pressable
-            style={styles.actionIcon}
-            onPress={() => toggleModal(index, item.userId)}
-          >
-            <Ionicons
-              name={"ellipsis-vertical"}
-              size={25}
-              color={"black"}
-            />
-          </Pressable>
         </View>
       </Pressable>
-    </View>
+    </View >
   )
 
-  const renderChoose = () => {
+
+  const renderChoose = ({ index, item }) => {
     return (
       <View style={styles.rowBack}>
         <TouchableOpacity style={[styles.backRightBtn, styles.backRightBtnLeft]}>
           <Text style={styles.backTextWhite}>Thêm</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.backRightBtn, styles.backRightBtnRight]}>
-          <Text style={styles.backTextWhite}>Xoá</Text>
+        <TouchableOpacity style={[styles.backRightBtn, styles.backRightBtnRight]} onPress={() => handleUnFriend(item)}>
+          {isLoading.some((itemLoading) => itemLoading.userId === item.userId)
+            ? <ActivityIndicator size='20' color='white' />
+            : <Text style={styles.backTextWhite}>Huỷ kết bạn</Text>
+          }
         </TouchableOpacity>
       </View>
     )
   }
+
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
@@ -145,8 +94,11 @@ const FriendDirectory = ({ navigation }) => {
         >
           <Ionicons name={"people-circle-sharp"} size={40} color={"#0091FF"} />
           <Text style={styles.buttonText}>Lời mời kết bạn</Text>
+          <View style={{ alignItems: 'center', justifyContent: 'center', width: 25, height: 25, backgroundColor: 'red', borderRadius: 50, marginLeft: 10 }}>
+            <Text style={{ color: 'white', fontWeight: "bold" }}>{authUser.requestReceived.length}</Text>
+          </View>
         </Pressable>
-      </View>
+      </View >
       <View style={styles.buttonBar}>
         <Pressable style={styles.roundedButton}>
           <Text style={styles.whiteText}>Tất cả {friends.length}</Text>
@@ -155,38 +107,15 @@ const FriendDirectory = ({ navigation }) => {
 
       {/* List danh bạ nè */}
       <View style={styles.friendList}>
-        <View style={styles.friendListHeader}>
-          <Text style={styles.sectionTitle}>#</Text>
-        </View>
         <SwipeListView
-          data={friends}
+          data={listFriends}
           renderItem={renderFriend}
           renderHiddenItem={renderChoose}
-          rightOpenValue={-225}
-          disableRightSwipe={!isFriendTabActive} // disable khi tab không active
-
+          rightOpenValue={-75}
+          stopRightSwipe={-75} // Dừng swipe khi mở hết phần bên phải
         />
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalUnFriend}
-          onRequestClose={() => setModalUnFriend(!modalUnFriend)}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setModalUnFriend(!modalUnFriend)}>
-            <View
-              style={[styles.centeredView, modalPosition, { position: "absolute", right: 10 }]}>
-              <Pressable
-                onPress={() => { handleUnFriend(); }}>
-                <Text style={{ fontSize: 20, backgroundColor: "white" }}>
-                  Hủy kết bạn
-                </Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
       </View>
-    </View>
+    </View >
   );
 };
 
@@ -244,13 +173,6 @@ const styles = StyleSheet.create({
   },
   friendList: {
     backgroundColor: "white",
-    padding: 10,
-    borderTopColor: "#e5e5e5",
-    borderTopWidth: 0.5,
-  },
-  friendListHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
   },
   titleRow: {
     flexDirection: "row",
@@ -267,11 +189,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   friendRow: {
-    paddingVertical: 10,
+    padding: 10,
+    backgroundColor: '#e5e5e5',
+    marginBottom: 5
   },
   friendItem: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: 'center'
   },
   friendInfo: {
     flexDirection: "row",
@@ -300,19 +225,18 @@ const styles = StyleSheet.create({
   },
   rowBack: {
     alignItems: 'center',
-    backgroundColor: '#DDD',
+    // backgroundColor: '#DDD',
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingLeft: 15,
+    justifyContent: 'flex-end',
   },
   backRightBtn: {
     alignItems: 'center',
-    bottom: 0,
     justifyContent: 'center',
     position: 'absolute',
     top: 0,
     width: 75,
+    height: 70
   },
   backRightBtnLeft: {
     backgroundColor: 'blue',
@@ -324,6 +248,9 @@ const styles = StyleSheet.create({
   },
   backTextWhite: {
     color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    textAlign: 'center'
   },
 });
 

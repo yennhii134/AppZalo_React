@@ -1,14 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
-import stateIsGroupSlice from './stateCreateGroupSlice';
 import friendsReducer from './stateFriendsSlice';
-import groupsReducer from './stateGroupsSlice';
-import isFriendReducer from './stateFriendsSlice'
-export default configureStore({
-    reducer: {
-      isGroup: stateIsGroupSlice.reducer,
-      friends: friendsReducer,
-      groups: groupsReducer,
+import updateGroupReducer from './stateUpdateGroupSlice';
+import updateConversationReducer from './stateUpdateConversationSlice';
 
-      
-    }
+export default configureStore({
+  reducer: {
+    isUpdateGroup: updateGroupReducer,
+    isUpdateConversation: updateConversationReducer,
+    friends: friendsReducer,
+  }
 });

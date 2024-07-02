@@ -1,9 +1,11 @@
 import { useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import useToast from "./useToast";
 
 const useGroup = () => {
   const [group, setGroup] = useState(null);
   const [groups, setGroups] = useState([]);
+  const { showToastError, showToastSuccess } = useToast();
 
   const createGroup = async (nameGroup, idUser) => {
     try {
@@ -12,13 +14,12 @@ const useGroup = () => {
         members: idUser,
       });
       if (response.status === 201) {
+        showToastSuccess("Tạo nhóm thành công")
         return response.data;
-      } else if (response.status === 500) {
-        console.log("Create group fail");
-        return null;
       }
     } catch (error) {
       console.log("CreateGroupError:", error);
+      showToastError("Tạo nhóm thất bại")
       return null;
     }
   };
@@ -62,8 +63,7 @@ const useGroup = () => {
     } catch (error) {
       console.error(error);
       throw error;
-    } finally {
-    }
+    } 
   };
 
 
@@ -83,7 +83,6 @@ const useGroup = () => {
         return true;
       }
     } catch (error) {
-      console.log('1')
       console.error(error);
       return false;
     }
@@ -149,18 +148,6 @@ const useGroup = () => {
     }
   };
 
-  const getUserById = async (id) => {
-    try {
-      const response = await axiosInstance.get(`/users/get/uid/${id}`)
-      if (response.status === 200) {
-        return response.data;
-      }
-    } catch (error) {
-      console.log("GetUserError", error);
-      return null;
-    }
-  };
-
   const changeAdmins = async (groupId, memberData) => {
     try {
       const response = await axiosInstance.post(
@@ -176,7 +163,7 @@ const useGroup = () => {
       }
     } catch (error) {
       console.error(error);
-    } 
+    }
   };
   return {
     group,
@@ -190,7 +177,6 @@ const useGroup = () => {
     removeMember,
     leaveGroup,
     addAdmin,
-    getUserById,
     changeAdmins
   };
 };

@@ -4,29 +4,11 @@ import { Video } from 'expo-av';
 import Toast from "react-native-toast-message";
 import moment from 'moment-timezone';
 import axiosInstance from '../api/axiosInstance';
-import useGroup from './useGroup';
 import { useAuthContext } from '../contexts/AuthContext';
 
 const useMessage = () => {
-  const { getUserById } = useGroup()
   const { authUser } = useAuthContext();
 
-  const showToastSuccess = (notice) => {
-    Toast.show({
-      text1: notice,
-      type: "success",
-      topOffset: 0,
-      position: "bottom",
-    });
-  };
-  const showToastError = (notice) => {
-    Toast.show({
-      text1: notice,
-      type: "error",
-      topOffset: 0,
-      position: "bottom",
-    });
-  };
   const renderMessageContent = (content) => {
     if (content.type === 'text') {
       return (
@@ -144,11 +126,9 @@ const useMessage = () => {
     const minutes = dateObject.getMinutes().toString().padStart(2, '0'); // Sử dụng padStart để đảm bảo số phút có 2 chữ số
     return `${hours}:${minutes}`;
   };
-  const addMessage = (textMessage, tag, replyChat) => {
+  const addMessage = (textMessage, tag, replyChat, isForward) => {
     return {
-      data: {
-        type: 'text', data: textMessage
-      },
+      data: isForward ? textMessage : { type: 'text', data: textMessage },
       replyMessageId: replyChat !== null ? replyChat.chat._id : null,
       isGroup: tag === "group" ? true : false
     }
@@ -156,7 +136,7 @@ const useMessage = () => {
   const sendMessage = async (user, message, typeSend) => {
     try {
       let headers = {}
-      if (typeSend === 'sendImages' || typeSend === 'sendVideo' || typeSend === 'sendFiles') {
+      if (typeSend !== 'sendText') {
         headers = {
           "Content-Type": "multipart/form-data",
         }
@@ -166,45 +146,29 @@ const useMessage = () => {
 
     } catch (error) {
       console.log("Error send message:", error)
-      return false;
+      return null;
     }
   }
-  const setDataChat = async (conver, isDelete) => {
-    let dataChat = '';
-    const getUser = await getUserById(conver.senderId)
-    if (authUser.profile.name === getUser.user.profile.name) {
-      dataChat = "Bạn"
-    } else {
-      dataChat = getUser.user.profile.name
-    }
-    if (isDelete) {
-      dataChat = dataChat + ": đã thu hồi tin nhắn";
-    }
-    else {
-      if (conver.contents[0].type === "text") {
-        dataChat = dataChat + ': ' + conver.contents[0].data;
-      } else if (conver.contents[0].type === "image") {
-        dataChat = dataChat + ': [Hình ảnh]';
-      } else if (conver.contents[0].type === "video"){
-        dataChat = dataChat + ': [Video]';
-      } else {
-        dataChat = dataChat + ': [File]';
-      }
-    }
+  const setDataChat = (lastMessage, friend, isDelete) => {
+    let dataChat = authUser._id === friend._id ? "Bạn" : friend.profile.name;
+    dataChat += isDelete ? ": đã thu hồi tin nhắn"
+      : lastMessage.contents[0].type === "text" ? `: ${lastMessage.contents[0].data}`
+        : lastMessage.contents[0].type === "image" ? ': [Hình ảnh]'
+          : lastMessage.contents[0].type === "video" ? ': [Video]'
+            : ': [File]'
     return dataChat;
   }
+
   const sortTime = (data) => {
     data.sort((a, b) => {
-      const timeA = a?.chat?.lastMessage?.timestamp || a.lastMessage.timestamp 
-      const timeB = b?.chat?.lastMessage?.timestamp || b.lastMessage.timestamp 
+      const timeA = a.lastMessage.timestamp
+      const timeB = b.lastMessage.timestamp
       return timeB.localeCompare(timeA);
     });
     return data;
   }
   return {
     renderMessageContent,
-    showToastError,
-    showToastSuccess,
     renderMessageContentReply,
     handleGetTimeInChat,
     handleGetTimeInMessage,

@@ -20,7 +20,7 @@ exports.getUserByPhoneOrId = async (req, res) => {
     }
 
     const returnUser = {
-      id: user._id,
+      userId: user._id,
       profile: user.profile,
       email: user.email,
       phone: user.phone,
@@ -273,11 +273,11 @@ exports.sendRequestAddFriend = async (req, res) => {
 
 exports.cancelRequestAddFriend = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { friendId } = req.body;
     const token = req.headers.authorization.split(" ")[1];
     const userId = getUserIdFromToken(token);
     const user = await User.findById(userId);
-    const friend = await User.findOne({ phone });
+    const friend = await User.findById(friendId);
 
     if (!user || !friend) {
       return res.status(404).json({ message: "User not found" });
@@ -308,11 +308,11 @@ exports.cancelRequestAddFriend = async (req, res) => {
 
 exports.acceptRequestAddFriend = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { friendId } = req.body;
     const token = req.headers.authorization.split(" ")[1];
     const userId = getUserIdFromToken(token);
     const user = await User.findById(userId);
-    const friend = await User.findOne({ phone });
+    const friend = await User.findById(friendId);
 
     if (!user || !friend) {
       return res.status(404).json({ message: "User not found" });
@@ -323,6 +323,7 @@ exports.acceptRequestAddFriend = async (req, res) => {
     if (!user.requestReceived.includes(friend._id)) {
       return res.status(400).json({ message: "Request not found" });
     }
+    console.log("friend",friend);
     user.friends.push(friend._id);
     friend.friends.push(userId);
     user.requestReceived = user.requestReceived.filter(
@@ -339,6 +340,8 @@ exports.acceptRequestAddFriend = async (req, res) => {
         sender: {
           userId: userId,
           profile: user.profile,
+          email: user.email,
+          phone: user.phone
         },
       });
     }
@@ -352,11 +355,11 @@ exports.acceptRequestAddFriend = async (req, res) => {
 
 exports.rejectRequestAddFriend = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { friendId } = req.body;
     const token = req.headers.authorization.split(" ")[1];
     const userId = getUserIdFromToken(token);
     const user = await User.findById(userId);
-    const friend = await User.findOne({ phone });
+    const friend = await User.findById(friendId);
 
     if (!user || !friend) {
       return res.status(404).json({ message: "User not found" });
@@ -444,7 +447,7 @@ exports.unfriend = async (req, res) => {
       io.to(reciverSocketId.socket_id).emit("unfriend", {
         sender: {
           userId: userId,
-          name: user.profile.name,
+          profile: user.profile,
         },
       });
     }

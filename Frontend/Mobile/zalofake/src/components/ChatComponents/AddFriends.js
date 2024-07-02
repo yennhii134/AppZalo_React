@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ const AddFriends = () => {
   const [searchedUser, setSearchedUser] = useState(null);
   const [sentRequest, setSentRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(false)
-  const { showToastError, showToastSuccess } = useToast()
+  const { showToastError } = useToast()
   const friends = useSelector(selectFriends);
 
   const handleSearch = async () => {
@@ -38,14 +38,10 @@ const AddFriends = () => {
       showToastError("Vui lòng nhập số điện thoại để tìm kiếm");
       return;
     }
-
-    const currentUserPhone = authUser.phone;
-
-    if (phone === currentUserPhone) {
+    if (phone === authUser.phone) {
       showToastError("Số điện thoại tài khoản hiện tại");
       return;
     }
-
     const userSearch = await getFriendByPhone(phone);
 
     if (userSearch) {
@@ -55,71 +51,40 @@ const AddFriends = () => {
 
   const handleAddFriend = async (friend) => {
     setIsLoading(true)
-    try {
-      await addFriend(friend.phone);
-      showToastSuccess("Đã gửi lời mời kết bạn");
-      setIsLoading(false)
-      setSentRequest(true);
-      reloadAuthUser();
-    } catch (error) {
-      console.log(error);
-      showToastError("Gửi lời mời không thành công!");
-      setIsLoading(false)
-    }
+    await addFriend(friend.phone);
+    setSentRequest(true);
+    setIsLoading(false)
   };
   const handleCancelFriendRequest = async (friend) => {
     setIsLoading(true)
-    try {
-      await cancelFriendRequest(friend.phone);
-      showToastSuccess("Đã hủy lời mời kết bạn");
-      setSentRequest(true);
-      setIsLoading(false)
-      reloadAuthUser();
-    } catch (error) {
-      console.log(error);
-      showToastError("Hủy kết bạn không thành công!");
-      setIsLoading(false)
-    }
+    await cancelFriendRequest(friend.userId);
+    setSentRequest(true);
+    setIsLoading(false)
   };
 
   const handleAcceptFriend = async (friend) => {
-    try {
-      await acceptFriend(friend.phone);
-      showToastSuccess("Đã chấp nhận lời mời kết bạn");
-      reloadAuthUser();
-    } catch (error) {
-      console.log(error);
-      showToastError("Chấp nhận lời mời kết bạn thất bại!");
-    }
+    setIsLoading(true)
+    await acceptFriend(friend.userId);
+    setIsLoading(false)
   };
 
   const handleRejectFriend = async (friend) => {
-    try {
-      await rejectFriend(friend.phone);
-      showToastSuccess("Đã từ chối lời mời kết bạn");
-      reloadAuthUser();
-    } catch (error) {
-      console.log(error);
-      showToastError("Từ chối lời mời kết bạn thất bạn");
-    }
+    setIsLoading(true)
+    await rejectFriend(friend.userId);
+    setIsLoading(false)
   };
 
   const handleUnFriend = async (friend) => {
-    try {
-      await unFriend(friend.phone);
-      showToastSuccess("Đã hủy kết bạn");
-      reloadAuthUser();
-    } catch (error) {
-      console.log(error);
-      showToastError("Hủy kết bạn thất bại!");
-    }
+    setIsLoading(true)
+    await unFriend(friend.userId);
+    setIsLoading(false)
   };
 
   const renderFriendItem = ({ item }) => {
-    const isFriend = friends.some((f) => f.userId === item.id);
+    const isFriend = friends.some((f) => f.userId === item.userId);
 
-    const isSent = authUser?.requestSent?.includes(item.id);
-    const isReceived = authUser?.requestReceived?.includes(item.id);
+    const isSent = authUser?.requestSent?.includes(item.userId);
+    const isReceived = authUser?.requestReceived?.includes(item.userId);
 
     return (
       <View
@@ -131,40 +96,47 @@ const AddFriends = () => {
           <Pressable
             onPress={() => handleUnFriend(item)}
             style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "red", }}>
-            <Text style={{ color: "white" }}>Hủy kết bạn</Text>
+            {isLoading
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={{ color: "white" }}>Hủy kết bạn</Text>
+            }
           </Pressable>
         ) : isSent ? (
           <Pressable
             onPress={() => handleCancelFriendRequest(item)}
             style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "orange", }}>
-            {isLoading ? (
-              <ActivityIndicator color="black" size="small" />
-            ) : (
-              <Text style={{ color: "white" }}>Hủy lời mời</Text>
-            )}
+            {isLoading
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={{ color: "white" }}>Hủy lời mời</Text>
+            }
           </Pressable>
         ) : isReceived ? (
           <View style={{ flexDirection: "row", marginLeft: "auto", justifyContent: 'space-evenly', width: '55%' }}>
             <Pressable
               onPress={() => handleRejectFriend(item)}
               style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "red", }}>
-              <Text style={{ color: "white" }}>Từ chối</Text>
+              {isLoading
+                ? <ActivityIndicator color="white" size="small" />
+                : <Text style={{ color: "white" }}>Từ chối</Text>
+              }
             </Pressable>
             <Pressable
               onPress={() => handleAcceptFriend(item)}
               style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "green", }}>
-              <Text style={{ color: "white" }}>Chấp nhận</Text>
+              {isLoading
+                ? <ActivityIndicator color="white" size="small" />
+                : <Text style={{ color: "white" }}>Chấp nhận</Text>
+              }
             </Pressable>
           </View>
         ) : (
           <Pressable
             onPress={() => handleAddFriend(item)}
             style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 20, backgroundColor: "green", }}>
-            {isLoading ? (
-              <ActivityIndicator color="black" size="small" />
-            ) : (
-              <Text style={{ color: "white" }}>Kết bạn</Text>
-            )}
+            {isLoading
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={{ color: "white" }}>Kết bạn</Text>
+            }
           </Pressable>
         )}
       </View>
@@ -190,7 +162,7 @@ const AddFriends = () => {
         <FlatList
           data={[searchedUser]}
           renderItem={renderFriendItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.userId.toString()}
         />
       )}
     </View>

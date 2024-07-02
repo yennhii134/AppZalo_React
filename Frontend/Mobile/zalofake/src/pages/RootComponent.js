@@ -23,7 +23,7 @@ import PersonalPrivacy from "../components/InfoComponents/PersonalPrivacy";
 import AccountVsSecurity from "../components/InfoComponents/AccoutVsSecurity";
 import PersonalSetting from "../components/InfoComponents/PersonalSetting";
 import ChangePassword from "../components/InfoComponents/ChangePassword";
-import FriendRequest from "../components/ChatComponents/FriendRequest";
+import FriendRequest from "../components/DirectoryComponents/FriendRequest";
 
 const Stack = createNativeStackNavigator();
 
@@ -41,7 +41,6 @@ export default function RootComponent() {
             headerShown: false,
           }}
         />
-
         <Stack.Screen name="SearchFriends" component={SearchFriends} />
         <Stack.Screen name="Message" component={Message} />
         <Stack.Screen name="FriendProfileSettings" component={FriendProfileSettings} />

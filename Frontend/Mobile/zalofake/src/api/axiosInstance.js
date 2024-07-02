@@ -6,6 +6,8 @@ import Toast from "react-native-toast-message";
 const axiosInstance = axios.create({
   baseURL: config.baseURL,
 });
+// AsyncStorage.clear()
+
 axiosInstance.interceptors.request.use(
   async (config) => {
     try {
@@ -64,7 +66,6 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // console.error("Refresh token failed:", refreshError);
         showErrorToast("Your session has expired. Please login again.");
         await AsyncStorage.clear();
         return Promise.reject(refreshError);

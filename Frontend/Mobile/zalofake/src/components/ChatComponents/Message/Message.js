@@ -17,41 +17,47 @@ import useMessage from '../../../hooks/useMessage'
 import * as ImagePicker from "expo-image-picker";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { useSocketContext } from "../../../contexts/SocketContext"
-import useGroup from "../../../hooks/useGroup";
 import { useAuthContext } from "../../../contexts/AuthContext";
 import * as DocumentPicker from 'expo-document-picker';
 import useConversation from "../../../hooks/useConversation";
 import { useSelector, useDispatch } from "react-redux";
-import { setIsGroup } from "../../../redux/stateCreateGroupSlice";
-import avatarGroup from '../../../../assets/avatarGroup.png'
+import { selectIsUpdateConversation, setIsUpdateConversation } from "../../../redux/stateUpdateConversationSlice";
+import useToast from "../../../hooks/useToast";
+import useFriend from "../../../hooks/useFriend";
+import { selectFriends } from "../../../redux/stateFriendsSlice";
+import useGroup from "../../../hooks/useGroup";
 
 const Message = ({ navigation, route }) => {
-  const { chatItem } = route.params;
-  const [conver, setConver] = useState(chatItem)
-  const { getGroups, getUserById } = useGroup()
-  const { authUser } = useAuthContext()
-  const [textMessage, setTextMessage] = useState(null)
-  const [isColorSend, setIsColorSend] = useState(false)
-  const { isNewSocket, newSocketData, setNewSocketData } = useSocketContext();
-  const { getConversationByID } = useConversation();
-  const dispatch = useDispatch();
-  var isGroupRedux = useSelector(state => state.isGroup.isGroup);
+  // State loading
+  const messageStatus = { SENDING: 'SENDING', DELETING: 'DELETING', RECALLING: 'RECALLING' }
+  const [isLoadingStatus, setIsLoadingStatus] = useState([])
+  const [isLoadForward, setIsLoadForward] = useState([])
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [isModalFriendVisible, setIsModalFriendVisible] = useState(false);
   const [modalImage, setModalImage] = useState(false);
+
+  // Call api
+  const { showToastSuccess, showToastError } = useToast();
+  const { getFriendById } = useFriend();
+  const { getConversationByID } = useConversation();
+  const { authUser } = useAuthContext()
+  const { isNewSocket, newSocketData, setNewSocketData } = useSocketContext();
+  const { renderMessageContent, renderMessageContentReply, handleGetTimeInMessage, addMessage, sendMessage } = useMessage();
+  const friends = useSelector(selectFriends);
+  const { groups, getGroups } = useGroup();
+
+  // Redux:
+  const dispatch = useDispatch();
+  const isUpdateConversation = useSelector(selectIsUpdateConversation)
+
+  const { chatItem } = route.params;
+  const [conversation, setConversation] = useState([])
+  const [textMessage, setTextMessage] = useState('')
   const [chats, setChats] = useState([]);
   const scrollViewRef = useRef();
-  const [isLoad, setIsLoad] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { renderMessageContent, renderMessageContentReply, showToastSuccess, showToastError, handleGetTimeInMessage, addMessage, sendMessage } = useMessage();
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [messageSelected, setMessageSelected] = useState("");
-  const [isModalFriendVisible, setIsModalFriendVisible] = useState(false);
-  const [friends, setFriends] = useState([]);
-  const [isLoadMess, setIsLoadMess] = useState(false)
-  const [isLoadChuyenTiep, setIsLoadChuyenTiep] = useState(false)
-  const [isLoadThuHoi, setIsLoadThuHoi] = useState(false)
-  const [isLoadXoa, setIsLoadXoa] = useState(false)
+  const [messageSelected, setMessageSelected] = useState(null);
   const [replyChat, setReplyChat] = useState(null);
-  const [avatarGr] = useState(avatarGroup)
+  const [userToForward, setUserToForward] = useState([]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -72,7 +78,7 @@ const Message = ({ navigation, route }) => {
             style={{ padding: 4, marginRight: 10 }}
           />
           <Pressable
-            onPress={() => navigation.navigate("MessageSettings", { item: conver })}
+            onPress={() => navigation.navigate("MessageSettings", { conversation: chatItem })}
           >
             <Ionicons
               name="list-outline"
@@ -85,15 +91,13 @@ const Message = ({ navigation, route }) => {
       ),
       headerTitle: () => (
         <View style={{ flexDirection: "row", alignItems: "center", width: '55%', marginRight: 200 }}>
-          {conver.tag === 'group' && (
-            <View style={{ width: '30%' }}>
-              <Image
-                source={conver.avatar === "https://res.cloudinary.com/dq3pxd9eq/image/upload/v1715763881/Zalo_Fake_App/qhncxk41jtp39iknujyz.png" ? avatarGr : { uri: conver.avatar }}
-                style={{ width: 45, height: 40, borderRadius: 25 }}
-              />
-            </View>
-          )}
-          <Text style={{ fontSize: 19, color: "white", fontWeight: 'bold' }}>{conver.name}</Text>
+          <View style={{ width: '30%' }}>
+            <Image
+              source={{ uri: chatItem.avatar }}
+              style={{ width: 45, height: 40, borderRadius: 25 }}
+            />
+          </View>
+          <Text style={{ fontSize: 19, color: "white", fontWeight: 'bold' }}>{chatItem.chatName}</Text>
         </View>
       ),
       headerStyle: {
@@ -106,7 +110,7 @@ const Message = ({ navigation, route }) => {
         fontSize: 20,
       },
     });
-  }, [navigation, isGroupRedux]);
+  }, [navigation]);
 
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
@@ -116,112 +120,67 @@ const Message = ({ navigation, route }) => {
   };
 
   const fetchConversation = async () => {
-    if (chatItem.conversation !== null) {
-      const fetchConver = await getConversationByID(chatItem.conversation?._id)
-      setConver({ ...conver, participants: fetchConver.participants, messages: fetchConver.messages })
-    }
+    const response = await getConversationByID(chatItem?.conversation._id)
+    setConversation(response)
   }
   useEffect(() => {
     fetchConversation()
-  }, [isGroupRedux])
+  }, [isUpdateConversation])
 
   useEffect(() => {
-    if (isLoad === true) {
-      scrollToEnd();
-    }
-  }, [isLoad]);
-
-  useEffect(() => {
-    if (conver && conver.messages) {
+    if (conversation && conversation.messages) {
       fetchChats();
     }
-  }, [conver]);
+  }, [conversation]);
 
   const fetchChats = async () => {
     try {
-      if (conver && conver.messages) {
-        const chatNew = await Promise.all(conver.messages.map(async (message) => {
-          let senderName
-          let nameReply
-          if (conver.participants.find((participant) => participant._id === message.senderId)) {
-            senderName = conver.participants.find((participant) => participant._id === message.senderId)
-          } else {
-            const getUser = await getUserById(message.senderId)
-            senderName = getUser.user
-          }
-          if (message.replyMessageId !== null) {
-            if (conver.participants.find((participant) => participant._id === message.replyMessageId.senderId)) {
-              nameReply = conver.participants.find((participant) => participant._id === message.replyMessageId.senderId)
-            } else {
-              const getUser = await getUserById(message.replyMessageId.senderId)
-              nameReply = getUser.user
-            }
-          }
-          return {
-            chat: message,
-            sender: senderName,
-            nameReply: nameReply?.profile.name || null
-          }
-        }))
-        setChats(chatNew);
-        setIsLoad(true);
-        fetchFriends();
-      }
+      const chatNew = await Promise.all(conversation.messages.map(async (message) => {
+        let nameReply = null
+        if (message.replyMessageId) {
+          nameReply = conversation.participants.find((participant) => participant._id === message.replyMessageId.senderId) || await getFriendById(message.replyMessageId.senderId)
+        }
+        return {
+          chat: message,
+          sender: conversation.participants.find((participant) => participant._id === message.senderId) || await getFriendById(message.senderId),
+          nameReply: nameReply?.profile?.name
+        }
+      }))
+      setChats(chatNew);
     } catch (error) {
       console.log(error);
-      return false;
     }
   };
 
-  const fetchFriends = async () => {
-    let data = []
-    try {
-      const response = await axiosInstance.get('/users/get/friends');
-      const newFriend = await Promise.all(response.data.friends.map(async (friend) => {
-        return {
-          _id: friend.userId,
-          name: friend.profile.name,
-          avatar: friend.profile.avatar.url || "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png",
-          tag: 'friend'
-        }
-      }))
-      data.push(...newFriend)
-    } catch (error) {
-      console.log("FetchGroupError: ", error);
-    }
-    try {
-      const allGr = await getGroups();
-      const newGroup = await Promise.all(allGr.map(async (group) => {
-        return {
-          _id: group._id,
-          name: group.groupName,
-          avatar: group.avatar.url,
-          tag: group.conversation.tag
-        }
-      }))
-      data.push(...newGroup)
-    } catch (error) {
-      console.log("FetchGroupError: ", error);
-    }
-    setFriends(data)
-
-  };
   const scrollToEnd = () => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
   }
+  const setChat = async (dataChat) => {
+    let nameReply = null
+    if (dataChat.replyMessageId) {
+      nameReply = conversation.participants.find((participant) => participant._id === dataChat.replyMessageId.senderId) || await getFriendById(dataChat.replyMessageId.senderId)
+    }
+    setChats(prevChats => [
+      ...prevChats,
+      {
+        chat: dataChat,
+        sender: conversation.participants.find(sender => sender._id === dataChat.senderId),
+        nameReply: nameReply?.profile?.name
+      }
+    ]);
+  }
 
   useEffect(() => {
     const fetchSocket = async () => {
-
       if (isNewSocket === "new_message") {
         const message = newSocketData;
+        // console.log("new_message", message);
         if (message && message.retrunMessage) {
-          // console.log("socket new messagae", message);
           if (
-            message.conversationId === conver.conversation._id &&
-            message.retrunMessage.receiverId === authUser._id && message.retrunMessage.senderId !== authUser._id
+            message.conversationId === conversation._id &&
+            message.retrunMessage.receiverId === chatItem._id && message.retrunMessage.senderId !== authUser._id
           ) {
             setChat(message.retrunMessage)
             scrollToEnd()
@@ -229,16 +188,13 @@ const Message = ({ navigation, route }) => {
         }
       }
       if (isNewSocket === "delete_message") {
-        console.log("delete");
         const { conversationId, isDeleted } = newSocketData;
-        console.log(("conversationId", conversationId));
-        console.log("isDeleted", isDeleted);
-        if (isDeleted && conver && conver.conversation._id === conversationId) {
-          setChats([])
-        } else {
-          if (conver && conver.conversation._id === conversationId) {
-            fetchConversation()
-            console.log("socket delete messagae");
+        if (conversation && conversation._id === conversationId) {
+          if (isDeleted) {
+            setChats([]);
+          } else {
+            fetchConversation();
+            console.log("socket delete message");
           }
         }
       }
@@ -248,28 +204,28 @@ const Message = ({ navigation, route }) => {
         if (group && group.removeMembers) {
           if (group.removeMembers.includes(authUser._id)) {
             navigation.navigate("ChatComponent");
-            setNewSocketData(null)
+            // setNewSocketData(null)
           }
         }
       }
       if (isNewSocket === "delete-group") {
         // console.log("delete-group in message", newSocketData);
         const group = newSocketData
-        if (group && group.id === conver._id) {
+        if (group && group.id === conversation._id) {
           navigation.navigate("ChatComponent");
-          setNewSocketData(null)
+          // setNewSocketData(null)
         }
       }
       if (isNewSocket === "update-group") {
         const group = newSocketData
-        if (group && group.id === conver._id) {
+        if (group && group.id === conversation._id) {
           // console.log("update-group",group);
           setConver(preConver => ({
             ...preConver,
             name: group.name,
             avatar: group.avatar
           }))
-          dispatch(setIsGroup())
+          dispatch(setIsUpdateConversation())
         }
       }
 
@@ -282,61 +238,42 @@ const Message = ({ navigation, route }) => {
     setModalVisible(true)
   };
 
-  const handleDeleteMess = () => {
-    setIsLoadThuHoi(true)
-    handleDelete(`/chats/${messageSelected.chat._id}/delete`, "Thu hồi thành công")
+  const handleMessRecall = () => {
+    setIsLoadingStatus(messageStatus.RECALLING)
+    handleDeleteOrRecall(`/chats/${messageSelected.chat._id}/delete`, "Thu hồi thành công")
   };
-  const handleDeleteMessByStatus = () => {
-    setIsLoadXoa(true)
-    handleDelete(`conversations/deleteOnMySelf/${conver.conversation._id}/${messageSelected.chat._id}`, "Xóa thành công")
+  const handleMessDelete = () => {
+    setIsLoadingStatus(messageStatus.DELETING)
+    handleDeleteOrRecall(`conversations/deleteOnMySelf/${conversation._id}/${messageSelected.chat._id}`, "Xóa thành công")
   };
 
-  const handleDelete = async (api, toast) => {
+  const handleDeleteOrRecall = async (api, toast) => {
     try {
       const response = await axiosInstance.post(api)
       if (response.status === 200) {
         fetchConversation()
         showToastSuccess(toast)
-        setIsLoadXoa(false)
-        setIsLoadThuHoi(false)
-        toggleModal()
       }
     } catch (error) {
       console.log(error);
-      setIsLoadThuHoi(false)
-      setIsLoadThuHoi(false)
-      toggleModal()
     }
+    setIsLoadingStatus([])
+    toggleModal()
   }
   const handleGetModalFriend = () => {
     toggleModal();
     toggleModalFriend();
   };
 
-  const chuyenTiepChat = (friend) => {
-    setIsLoadChuyenTiep(true)
-    const handleSendMessage = async () => {
-      try {
-        const messagae = {
-          data: messageSelected.chat.contents[0],
-          replyMessageId: replyChat !== null ? replyChat.chat._id : null,
-          isGroup: friend.tag === "group" ? true : false
-        }
-        const send = await sendMessage(friend._id, messagae, 'sendText')
-        if (send) {
-          showToastSuccess("Chuyển tiếp thành công")
-          setIsLoadChuyenTiep(false)
-        } else {
-          showToastError("Chuyển tiếp thất bại")
-        }
-      } catch (error) {
-        console.log("error1:", error)
-        setIsLoadChuyenTiep(false)
-        return false;
-      }
-      toggleModalFriend();
+  const handleMessForward = async (user) => {
+    setIsLoadForward((prevStatus) => [...prevStatus, { id: user._id, status: messageStatus.FORWARDING }])
+    const send = await sendMessage(user._id, addMessage(messageSelected.chat.contents[0], user.tag, replyChat, true), 'sendText')
+    if (send) {
+      showToastSuccess("Chuyển tiếp thành công")
+    } else {
+      showToastError("Chuyển tiếp thất bại")
     }
-    handleSendMessage();
+    setIsLoadForward((prevStatus) => prevStatus.filter(item => item.id !== user._id))
   };
 
   const appendData = (formData, asset) => {
@@ -355,18 +292,17 @@ const Message = ({ navigation, route }) => {
     formData.append('isGroup', tag === 'group' ? true : false)
     formData.append('replyMessageId', replyChat !== null ? replyChat.chat._id : null)
   }
-  const setChat = async (dataChat) => {
+  const setChatItem = async (dataChat) => {
     let nameReply = null
     let senderName = authUser
     if (dataChat.replyMessageId) {
-      nameReply = conver.participants.find((participant) => participant._id === dataChat.replyMessageId.senderId)
+      nameReply = conversation.participants.find((participant) => participant._id === dataChat.replyMessageId.senderId)
       if (!nameReply) {
-        const getUser = await getUserById(dataChat.replyMessageId.senderId)
-        nameReply = getUser.user
+        nameReply = await getFriendById(dataChat.replyMessageId.senderId)
       }
     }
     if (dataChat.senderId !== authUser._id) {
-      senderName = conver.participants.find(sender => sender._id === dataChat.senderId)
+      senderName = conversation.participants.find(sender => sender._id === dataChat.senderId)
     }
     setChats(prevChats => [
       ...prevChats,
@@ -377,26 +313,22 @@ const Message = ({ navigation, route }) => {
       }
     ]);
   }
+
   const send = async (user, formData, typeSend) => {
-    setIsLoadMess(true)
-    try {
-      const response = await sendMessage(user, formData, typeSend)
-      if (response && response.status === 201) {
-        console.log(`${typeSend} success`);
-        setChat(response.data.data.message)
-        setReplyChat(null);
-        setIsLoadMess(false)
-        dispatch(setIsGroup())
-        scrollToEnd();
-      } else {
-        console.log(`${typeSend} fail`);
-        setIsLoadMess(false)
-      }
-    } catch (error) {
-      console.log(`Send ${typeSend} error:`, error);
-      setIsLoadMess(false)
+    setIsLoadingStatus(messageStatus.SENDING)
+    const response = await sendMessage(user, formData, typeSend)
+    if (response && response.status === 201) {
+      console.log(`${typeSend} success`);
+      setChatItem(response.data.data.message)
+      setReplyChat(null);
+      dispatch(setIsUpdateConversation())
+      scrollToEnd();
+    } else {
+      console.log(`${typeSend} fail`);
     }
+    setIsLoadingStatus([])
   }
+
   const pickFile = async () => {
     try {
       const file = await DocumentPicker.getDocumentAsync();
@@ -438,38 +370,30 @@ const Message = ({ navigation, route }) => {
       }
     }
     if (is) {
-      appendIs(formData, conver.tag)
-      send(conver._id, formData, typeSend)
+      appendIs(formData, chatItem.tag)
+      send(chatItem._id, formData, typeSend)
     }
     if (isVideo) {
-      appendIs(formDataVideo, conver.tag)
-      send(conver._id, formDataVideo, 'sendVideo')
+      appendIs(formDataVideo, chatItem.tag)
+      send(chatItem._id, formDataVideo, 'sendVideo')
     }
   }
-  useEffect(() => {
-    // Update send button color based on textMessage
-    if (!textMessage) {
-      setIsColorSend("black");
-    } else {
-      setIsColorSend("#0091FF");
-    }
-  }, [textMessage]);
 
   const handleSendMessage = async () => {
-    if (textMessage) {
-      send(conver._id, addMessage(textMessage, conver.tag, replyChat), 'sendText')
-      setTextMessage(null);
+    if (textMessage !== '') {
+      send(chatItem._id, addMessage(textMessage, chatItem.tag, replyChat), 'sendText')
+      setTextMessage('');
     }
   }
-  const handleCheckIsSend = (message) => {
-    if (authUser.profile.name === message.sender.profile.name) {
+  const checkAuthUser = (message) => {
+    if (authUser._id === message.sender._id) {
       return true;
     } else {
       return false;
     }
   };
 
-  const handleCheckShow = (message) => {
+  const handleShowScreen = (message) => {
     if (message.sender._id === authUser._id) {
       if (message.chat.status === 0 || message.chat.status === 2) {
         return true;
@@ -484,15 +408,9 @@ const Message = ({ navigation, route }) => {
       }
     }
   };
-  const handleReplyChat = () => {
-    setReplyChat(messageSelected);
-    toggleModal();
-  };
-  const handleXemAnh = () => {
-    setModalImage(true)
-  };
+
   const handleXemFile = async () => {
-    const url = messageSelected?.chat?.contents[0].data;
+    const url = messageSelected.chat.contents[0].data;
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
@@ -501,47 +419,62 @@ const Message = ({ navigation, route }) => {
     }
   };
 
+  useEffect(() => {
+    getGroups()
+    const fetchUserToForward = friends.map((friend) => {
+      return {
+        _id: friend.userId,
+        name: friend.profile.name,
+        avatar: friend.profile.avatar.url,
+        tag: 'friend'
+      }
+    })
+    const fetchGroup = groups.map((group) => {
+      return {
+        _id: group._id,
+        name: group.groupName,
+        avatar: group.avatar.url,
+        tag: group.conversation.tag
+      }
+    })
+    fetchUserToForward.push(...fetchGroup)
+    setUserToForward(fetchUserToForward);
+  }, [friends])
+
   return (
     <View style={{ flex: 1, backgroundColor: "#E5E9EB" }}>
       <View style={{ flex: 1, justifyContent: "center" }}>
-        {isLoading ? (
-          <ActivityIndicator color="blue" size="large" />
-        ) : (
-          <View></View>
-        )}
-        <ScrollView ref={scrollViewRef}
-        >
+        <ScrollView ref={scrollViewRef}>
           <View style={{ flex: 1 }}>
             {chats.length > 0 ?
               (chats.map((message, index) => (
                 <View key={index}>
                   {
-                    handleCheckShow(message) && (
-                      <View style={{ display: 'flex', flexDirection: 'row', alignItems: "center", justifyContent: handleCheckIsSend(message) ? "flex-end" : "flex-start" }} >
-                        {handleCheckIsSend(message) ?
-                          (<View></View>) :
+                    handleShowScreen(message) && (
+                      <View style={{ display: 'flex', flexDirection: 'row', alignItems: "center", justifyContent: checkAuthUser(message) ? "flex-end" : "flex-start" }} >
+                        {!checkAuthUser(message) &&
                           (<View
                             style={{ width: 35, height: 35, justifyContent: "center", alignItems: "center", marginLeft: 10, marginRight: 10 }} >
                             <Image
-                              source={{ uri: message.sender.profile.avatar.url || "https://fptshop.com.vn/Uploads/Originals/2021/6/23/637600835869525914_thumb_750x500.png" }}
+                              source={{ uri: message.sender.profile.avatar.url }}
                               style={{ width: 35, height: 35, borderRadius: 25 }}
                             />
                           </View>)}
                         <View style={[
-                          handleCheckIsSend(message) ? styles.styleSender : styles.styleRecive
+                          checkAuthUser(message) ? styles.styleSender : styles.styleRecive
                         ]}>
                           <Text style={{ paddingHorizontal: 10, fontSize: 12, color: 'gray', fontWeight: '700' }}>
-                            {message.sender.profile.name}
+                            {message.sender._id === authUser._id ? 'Bạn' : message.sender.profile.name}
                           </Text>
-                          {message.chat.replyMessageId === null ? (<View></View>) :
+                          {message.chat.replyMessageId &&
                             (<View style={{ backgroundColor: '#89D5FB', display: 'flex', marginLeft: 10, borderLeftWidth: 2, borderColor: '#0072AB', marginRight: 10 }}>
 
-                              {message.chat.replyMessageId.contents.map((content, i) => (
-                                <View key={i} style={{ display: 'flex', paddingVertical: 10, alignItems: 'center', }}>
+                              {message.chat.replyMessageId.contents.map((content) => (
+                                <View key={content._id} style={{ display: 'flex', paddingVertical: 10, alignItems: 'center', }}>
                                   {content.type === 'text' ? (
                                     <View>
                                       <Text style={{ fontSize: 13, fontWeight: 'bold', paddingLeft: 15 }}>
-                                        {message?.nameReply}
+                                        {message.nameReply}
                                       </Text>
                                       {renderMessageContentReply(content)}
                                     </View>
@@ -550,7 +483,7 @@ const Message = ({ navigation, route }) => {
                                       {renderMessageContentReply(content)}
                                       <View>
                                         <Text style={{ paddingLeft: 10, fontSize: 13, fontWeight: 'bold' }}>
-                                          {message?.nameReply}
+                                          {message.nameReply}
                                         </Text>
                                         <Text style={{ paddingLeft: 10, fontSize: 13, color: '#000' }}>
                                           [{content.type === 'image' ? 'Hình ảnh' : content.type}]
@@ -562,8 +495,8 @@ const Message = ({ navigation, route }) => {
                               ))}
                             </View>)
                           }
-                          {message.chat.contents.map((content, i) => (
-                            <Pressable key={i}
+                          {message.chat.contents.map((content) => (
+                            <Pressable key={content._id}
                               onPress={() => handlePressIn(message)}>
                               <View>
                                 {renderMessageContent(content)}
@@ -573,8 +506,7 @@ const Message = ({ navigation, route }) => {
                           ))}
                         </View>
                       </View>
-                    )
-                  }
+                    )}
                 </View>
               ))) : (<View><Text style={{ fontSize: 16, fontWeight: '600', textAlign: 'center', paddingVertical: 10 }}>Chưa có tin nhắn nào!</Text></View>)}
 
@@ -582,20 +514,21 @@ const Message = ({ navigation, route }) => {
         </ScrollView>
       </View >
       <View>
-        {replyChat === null ?
-          (<Text></Text>) :
+        {replyChat &&
           (
             <View style={{ backgroundColor: 'white', padding: 10 }}>
               <View style={{ borderLeftWidth: 2, marginLeft: 10 }}>
                 <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ paddingLeft: 15, fontSize: 14, color: '#000' }}>
-                    Trả lời: <Text style={{ paddingLeft: 15, fontSize: 14, color: 'gray', fontWeight: 'bold' }}>{replyChat?.sender?.profile.name} </Text>
+                    Trả lời: <Text style={{ paddingLeft: 15, fontSize: 14, color: 'gray', fontWeight: 'bold' }}>
+                      {replyChat.sender._id === authUser._id ? 'Bạn' : replyChat.sender.profile.name}
+                    </Text>
                   </Text>
                   <Pressable onPress={() => { setReplyChat(null) }} style={{ marginRight: 20 }}><Ionicons name="close" size={30} color="gray" /></Pressable>
                 </View>
                 <View>
-                  {replyChat.chat.contents.map((content, i) => (
-                    <View key={i} >
+                  {replyChat.chat.contents.map((content) => (
+                    <View key={content._id} >
                       {renderMessageContentReply(content)}
                     </View>
                   ))}</View>
@@ -619,7 +552,7 @@ const Message = ({ navigation, route }) => {
         <View style={{ width: '54%' }}>
           <TextInput
             value={textMessage}
-            onChangeText={setTextMessage}
+            onChangeText={(textMessage) => setTextMessage(textMessage)}
             style={{
               flex: 1,
               height: 40,
@@ -654,10 +587,10 @@ const Message = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleSendMessage}>
-            {isLoadMess ? (
+            {isLoadingStatus === messageStatus.SENDING ? (
               <ActivityIndicator color="black" size="large" />
             ) : (
-              <Ionicons name="paper-plane" size={30} color={isColorSend} />
+              <Ionicons name="paper-plane" size={30} color={textMessage ? '#0091FF' : 'black'} />
             )}
           </TouchableOpacity>
         </View>
@@ -669,82 +602,82 @@ const Message = ({ navigation, route }) => {
         visible={isModalVisible}
         onRequestClose={toggleModal}
       >
-        <View style={styles.modalContainer}>
+        <Pressable style={styles.modalContainer} onPress={toggleModal}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeaderText}>
-              Choose
-            </Text>
             <View style={styles.modalButtonContainer1}>
               <Pressable style={styles.pressCol} onPress={handleGetModalFriend}>
                 <FontAwesome5
                   name="share"
                   size={20}
-                  color="black"
+                  color="#3498DB"
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.modalButton}>Chuyển tiếp</Text>
               </Pressable>
-              <Pressable style={styles.pressCol} onPress={handleDeleteMessByStatus}>
-                {isLoadXoa ? (
+              <Pressable style={styles.pressCol} onPress={handleMessDelete}>
+                {isLoadingStatus === messageStatus.DELETING ? (
                   <ActivityIndicator color="black" size="large" />
                 ) : (
                   <FontAwesome5
                     name="trash"
                     size={20}
-                    color="black"
+                    color="#E63946"
                     style={{ marginRight: 8 }}
                   />
                 )}
                 <Text style={styles.modalButton} >Xóa</Text>
               </Pressable>
-              {
-                messageSelected?.sender?.profile?.name === authUser.profile.name
-                  ? (
-                    <Pressable style={styles.pressCol} onPress={handleDeleteMess}>
-                      {isLoadThuHoi ? (
-                        <ActivityIndicator color="black" size="large" />
-                      ) : (
-                        <FontAwesome5
-                          name="comment-slash"
-                          size={20}
-                          color="black"
-                          style={{ marginRight: 8 }}
-                        />
-                      )}
-                      <Text style={styles.modalButton}>Thu hồi</Text>
-                    </Pressable>
-
-                  ) : (
-                    <Text></Text>
-                  )}
+              <Pressable style={styles.pressCol} onPress={() => {
+                setReplyChat(messageSelected);
+                toggleModal();
+              }}>
+                <FontAwesome5
+                  name="reply"
+                  size={20}
+                  color="#7F00FF"
+                  style={{ margin: 'auto' }}
+                />
+                <Text style={styles.modalButton}>Trả lời</Text>
+              </Pressable>
             </View>
             <View style={styles.modalButtonContainer1}>
               <Pressable style={styles.pressCol} >
                 <FontAwesome5
                   name="list"
                   size={20}
-                  color="black"
+                  color="#A8DADC"
                   style={{ margin: 'auto' }}
                 />
                 <Text style={styles.modalButton}>Chọn nhiều</Text>
               </Pressable>
-              <Pressable style={styles.pressCol} onPress={handleReplyChat}>
-                <FontAwesome5
-                  name="reply"
-                  size={20}
-                  color="black"
-                  style={{ margin: 'auto' }}
-                />
-                <Text style={styles.modalButton}>Trả lời</Text>
-              </Pressable>
+              {
+                messageSelected?.sender?._id === authUser._id
+                && (
+                  <Pressable style={styles.pressCol} onPress={handleMessRecall}>
+                    {isLoadingStatus === messageStatus.RECALLING ? (
+                      <ActivityIndicator color="black" size="large" />
+                    ) : (
+                      <FontAwesome5
+                        name="comment-slash"
+                        size={20}
+                        color="#FF4500"
+                        style={{ marginRight: 8 }}
+                      />
+                    )}
+                    <Text style={styles.modalButton}>Thu hồi</Text>
+                  </Pressable>
+
+                )}
+            </View>
+            <View style={styles.modalButtonContainer1}>
               {
                 messageSelected?.chat?.contents[0].type === 'image'
                 && (
-                  <Pressable style={styles.pressCol} onPress={handleXemAnh}>
-                    <FontAwesome5
-                      name="image"
+                  <Pressable style={styles.pressCol} onPress={() => { setModalImage(true); toggleModal() }}>
+                    <Ionicons
+                      name="images"
                       size={25}
-                      color="black"
+                      color="#DB7093"
                       style={{ margin: 'auto' }}
                     />
                     <Text style={styles.modalButton}>Xem ảnh</Text>
@@ -753,11 +686,11 @@ const Message = ({ navigation, route }) => {
               {
                 messageSelected?.chat?.contents[0].type === 'video'
                 && (
-                  <Pressable style={styles.pressCol} onPress={handleXemAnh}>
-                    <FontAwesome5
-                      name="video"
-                      size={25}
-                      color="black"
+                  <Pressable style={styles.pressCol} onPress={() => { setModalImage(true); toggleModal() }}>
+                    <Ionicons
+                      name="videocam"
+                      size={28}
+                      color="#4169E1"
                       style={{ margin: 'auto' }}
                     />
                     <Text style={styles.modalButton}>Xem video</Text>
@@ -767,17 +700,16 @@ const Message = ({ navigation, route }) => {
                 messageSelected?.chat?.contents[0].type === 'file'
                 && (
                   <Pressable style={styles.pressCol} onPress={handleXemFile}>
-                    <FontAwesome5
-                      name="list"
-                      size={25}
-                      color="black"
+                    <Ionicons
+                      name="document-text"
+                      size={26}
+                      color="#90EE90"
                       style={{ margin: 'auto' }}
                     />
                     <Text style={styles.modalButton}>Xem file</Text>
                   </Pressable>
                 )}
             </View>
-
             <View style={styles.modalButtonContainer}>
               <Pressable onPress={toggleModal}>
                 <Text style={styles.modalButton}>HỦY</Text>
@@ -785,7 +717,7 @@ const Message = ({ navigation, route }) => {
 
             </View>
           </View>
-        </View>
+        </Pressable>
       </Modal>
       {/* modal load danh sách bạn bè để chuyển tiếp */}
       <Modal
@@ -794,95 +726,84 @@ const Message = ({ navigation, route }) => {
         visible={isModalFriendVisible}
         onRequestClose={toggleModalFriend}
       >
-        <View style={styles.modalContainer}>
+        <Pressable style={styles.modalContainer} onPress={toggleModalFriend}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeaderText}>
-              Choose
-            </Text>
-            <View style={styles.modalButtonContainer}>
-              <ScrollView>
-                <View style={styles.friendList}>
-                  <View style={styles.friendListHeader}>
-                    <Text style={styles.sectionTitle}></Text>
-                    {isLoadChuyenTiep ? (
-                      <ActivityIndicator color="black" size="large" />
-                    ) : (
-                      <View></View>
-                    )}
-                    <Pressable onPress={(toggleModalFriend)}><Ionicons name="close" size={30} color="black" /></Pressable>
-                  </View>
-                  {friends.map((friend, index) => (
-                    <View key={index} style={styles.friendRow}>
-                      <Pressable style={styles.friendItem} >
-                        <View style={styles.friendInfo}>
-                          <Image
-                            source={{
-                              uri: friend.avatar
-                            }}
-                            style={styles.friendAvatar}
-                          />
-                          <Text style={styles.friendName}>{friend.name}</Text>
-                        </View>
-                        <View style={styles.friendActions}>
-                          <Pressable onPress={() => chuyenTiepChat(friend)} style={styles.pressCol}>
-                            <FontAwesome5
-                              name="arrow-right"
-                              size={30}
-                              color="black"
+            <ScrollView>
+              <View style={styles.friendList}>
+                <View style={styles.friendListHeader}>
+                  <Text style={styles.sectionTitle}></Text>
+                  <Pressable onPress={(toggleModalFriend)}><Ionicons name="close" size={30} color="black" /></Pressable>
+                </View>
+                {userToForward.map((user) => (
+                  <View key={user._id} style={styles.friendRow}>
+                    <Pressable style={styles.friendItem} >
+                      <View style={styles.friendInfo}>
+                        <Image
+                          source={{ uri: user.avatar }}
+                          style={styles.friendAvatar}
+                        />
+                        <Text style={styles.friendName}>{user.name}</Text>
+                      </View>
+                      <View style={styles.friendActions}>
+                        <Pressable onPress={() => handleMessForward(user)} style={styles.pressCol}>
+                          {isLoadForward.some((item) => item.id === user._id && item.status === messageStatus.FORWARDING)
+                            ? <ActivityIndicator color="black" size="large" />
+                            : <Ionicons
+                              name="arrow-forward-circle"
+                              size={28}
+                              color="#5472E0"
                               style={{ alignContent: "center", alignItems: "center" }}
                             />
-                          </Pressable>
-                        </View>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
+                          }
+                        </Pressable>
+                      </View>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
             <View style={styles.modalButtonContainer}>
               <Pressable onPress={toggleModalFriend}>
                 <Text style={styles.modalButton}>HỦY</Text>
               </Pressable>
-              <Pressable >
-                <Text style={styles.modalButton}>XÁC NHẬN</Text>
-              </Pressable>
             </View>
           </View>
-        </View>
+        </Pressable>
       </Modal>
 
       {/* modalImage */}
       <Modal
+        animationType="slide"
         visible={modalImage}
         transparent={true}
         onRequestClose={() => setModalImage(false)}
       >
-        <View style={styles.modalContainer}>
-          <TouchableOpacity style={{ paddingLeft: '80%' }} onPress={() => {
-            setModalImage(false);
-            toggleModal()
-          }}>
-            <View>
-              <FontAwesome5
-                name="times"
+        <Pressable style={{ backgroundColor: "rgba(0,0,0,0.5)", justifyContent: 'center', alignItems: 'center', height: '100%' }}
+          onPress={() => setModalImage(false)}>
+          <View style={{ width: '80%', height: '80%', backgroundColor: 'white', borderRadius: 10 }}>
+            <Pressable style={{ width: '100%', alignItems: 'flex-end', justifyContent: 'flex-end' }}
+              onPress={() => setModalImage(false)}>
+              <Ionicons
+                name="close"
                 size={30}
                 color="black"
-                style={{ alignContent: "center", alignItems: "center" }}
               />
-            </View>
-          </TouchableOpacity>
-          {messageSelected?.chat?.contents[0].type === 'image' ? (<Image
-            source={{ uri: messageSelected?.chat?.contents[0].data }}
-            style={{ width: '90%', height: null, aspectRatio: 1, borderRadius: 10 }}
-            resizeMode="contain"
-          />) : (<Video
-            source={{ uri: messageSelected?.chat?.contents[0].data }}
-            useNativeControls
-            resizeMode="contain"
-            style={{ width: '90%', height: null, aspectRatio: 1, borderRadius: 10 }}
-          />)
-          }
-        </View>
+            </Pressable>
+            {messageSelected?.chat?.contents[0].type === 'image'
+              ? (<Image
+                source={{ uri: messageSelected?.chat?.contents[0].data }}
+                style={{ width: '100%', height: '90%', borderRadius: 10 }}
+                resizeMode="contain"
+              />)
+              : (<Video
+                source={{ uri: messageSelected?.chat?.contents[0].data }}
+                useNativeControls
+                resizeMode="contain"
+                style={{ width: '100%', height: '90%', borderRadius: 10 }}
+              />)
+            }
+          </View>
+        </Pressable>
       </Modal>
     </View >
   );
@@ -892,7 +813,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#e2e8f1",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalImageContainer: {
     width: '100%',
@@ -926,7 +847,7 @@ const styles = StyleSheet.create({
   modalButton: {
     fontWeight: "bold",
     marginHorizontal: 10,
-    color: "#0091FF",
+    color: "gray",
   },
   friendRow: {
     paddingVertical: 10,
@@ -970,9 +891,9 @@ const styles = StyleSheet.create({
   },
   modalButtonContainer1: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
     alignItems: 'center',
-    marginTop: 20
+    marginTop: 20,
   },
   styleSender: {
     marginTop: 10,

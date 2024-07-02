@@ -12,17 +12,18 @@ import { Ionicons } from "@expo/vector-icons";
 import useConversation from "../../../hooks/useConversation";
 import { useSelector } from "react-redux";
 import { selectFriends } from "../../../redux/stateFriendsSlice";
-import { selectGroups } from "../../../redux/stateGroupsSlice";
+import useGroup from "../../../hooks/useGroup";
 
 function SearchFriends({ navigation }) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedFriendIndex] = useState(null);
-  const [isSearch, setIsSearch] = useState(0)
   const [listFilter, setListFilter] = useState([])
-  const { handleFriendMessage } = useConversation();
+  const { handleMessageNavigation } = useConversation();
   const searchInputRef = useRef(null);
   const friends = useSelector(selectFriends);
-  const groups = useSelector(selectGroups);
+  const { groups, getGroups } = useGroup();
+  const states = { LIST: 'LIST', FILTER: 'FILTER', NULL: 'NULL' }
+  const [isSearch, setIsSearch] = useState(states.LIST)
 
   useEffect(() => {
     navigation.setOptions({
@@ -71,8 +72,12 @@ function SearchFriends({ navigation }) {
   }, [navigation]);
 
   useEffect(() => {
+    getGroups()
+  }, [])
+
+  useEffect(() => {
     if (searchKeyword === '') {
-      setIsSearch(0)
+      setIsSearch(states.LIST)
     }
     else {
       const filterFriends = friends.filter((friend) =>
@@ -83,29 +88,15 @@ function SearchFriends({ navigation }) {
       );
       if (filterFriends.length > 0 || filterGroup.length > 0) {
         setListFilter({ ...listFilter, filterFriends, filterGroup })
-        setIsSearch(2)
+        setIsSearch(states.FILTER)
       } else {
-        setIsSearch(1)
+        setIsSearch(states.NULL)
       }
     }
   }, [searchKeyword])
 
   const handleFriendPress = async (item) => {
-    let response
-    if (item.groupName) {
-      response = {
-        _id: item._id,
-        conversation: item.conversation,
-        name: item.groupName,
-        avatar: item.avatar.url,
-        lastMessage: item.lastMessage,
-        tag: item.conversation.tag,
-        createBy: item.createBy,
-      }
-    }
-    else {
-      response = await handleFriendMessage(item);
-    }
+    const response = await handleMessageNavigation(item)
     navigation.navigate("Message", { chatItem: response });
   };
   const renderItem = (item, index) => {
@@ -114,17 +105,17 @@ function SearchFriends({ navigation }) {
         <Pressable
           key={index}
           onPress={() => handleFriendPress(item)}
-          style={[styles.friendItem, index === selectedFriendIndex && { backgroundColor: "#e0e0e0", },]}>
+          style={[styles.friendItem, index === selectedFriendIndex && { backgroundColor: "#e0e0e0" }]}>
           <View style={styles.friendInfo}>
             <Image
               source={{
                 uri:
-                  item.profile.avatar.url ||
+                  item?.profile?.avatar?.url ||
                   item.avatar.url
               }}
               style={styles.friendAvatar}
             />
-            <Text style={styles.friendName}>{item.profile.name || item.groupName}</Text>
+            <Text style={styles.friendName}>{item?.profile?.name || item.groupName}</Text>
           </View>
         </Pressable>
       </View>)
@@ -133,7 +124,7 @@ function SearchFriends({ navigation }) {
     <View style={{ flex: 1 }}>
       <ScrollView>
         <View style={styles.friendList}>
-          {isSearch === 1 ? (<View></View>) : isSearch === 2 ? (
+          {isSearch === states.NULL ? (<View></View>) : isSearch === states.FILTER ? (
             < View>
               {[...listFilter?.filterFriends, ...listFilter?.filterGroup].map((item, index) => renderItem(item, index))}
             </View>

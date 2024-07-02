@@ -13,20 +13,33 @@ import ChatItem from "./ChatItem";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuthContext } from "../../../contexts/AuthContext";
 import { useSocketContext } from "../../../contexts/SocketContext";
-import useConversation from "../../../hooks/useConversation";
-import useGroup from "../../../hooks/useGroup";
 import useMessage from '../../../hooks/useMessage'
 import { useSelector } from "react-redux";
+import CreateGroup from "../../ModalComponents/CreateGroup";
+import useConversation from "../../../hooks/useConversation";
+import useGroup from "../../../hooks/useGroup";
+import { selectIsUpdateConversation } from "../../../redux/stateUpdateConversationSlice";
+import useToast from "../../../hooks/useToast";
+import { selectIsUpdateGroup } from "../../../redux/stateUpdateGroupSlice";
+import useSocket from "../../../hooks/useSocket";
 
 function Chat({ navigation }) {
-  const [isModalVisible, setModalVisible] = useState(false);
-  const { conversations, getConversations } = useConversation();
-  const { groups, getGroups } = useGroup();
-  const [listFriends, setListFriends] = useState([]);
+  // Fetch API
   const { authUser } = useAuthContext();
+  const { groups, getGroups } = useGroup()
+  const { getConversations, conversations, handleMessageNavigation } = useConversation();
+  const { handleGetTimeInChat, setDataChat, sortTime } = useMessage();
   const { isNewSocket, newSocketData, setNewSocketData } = useSocketContext();
-  const { showToastSuccess, handleGetTimeInChat, setDataChat, sortTime } = useMessage();
-  var isGroupRedux = useSelector(state => state.isGroup.isGroup);
+  const { showToastSuccess } = useToast()
+  const { fetchSocket } = useSocket();
+
+  // Redux
+  var isUpdateConversation = useSelector(selectIsUpdateConversation);
+  var isUpdateGroup = useSelector(selectIsUpdateGroup);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [chats, setChats] = useState([])
+  const [isModalCreateGroup, setIsModalCreateGroup] = useState(false)
+  const [groupReponse, setGroupResone] = useState(null)
 
   useEffect(() => {
     navigation.setOptions({
@@ -43,7 +56,7 @@ function Chat({ navigation }) {
             onPress={() => setModalVisible(!isModalVisible)}
             style={styles.headerIcon}
           >
-            <Ionicons name="search" size={24} color="white" />
+            <Ionicons name="apps-outline" size={24} color="white" />
           </Pressable>
         </View>
       ),
@@ -83,212 +96,187 @@ function Chat({ navigation }) {
     });
   }, [navigation]);
 
+  useEffect(() => {
+    getConversations();
+    getGroups();
+  }, [isUpdateConversation, isUpdateGroup])
+
   const fetchDataChat = async () => {
-    const listChat = conversations.map((conversation) => {
-      const friend = conversation.participants.find(
-        (participant) => participant.phone !== authUser.phone
-      );
+    const listConversation = conversations
+      .filter((conversation) => conversation.lastMessage !== null)
+      .map((conversation) => {
+        const friend = conversation.participants.find(
+          (participant) => participant._id !== authUser._id
+        );
+        const chatData = setDataChat(conversation.lastMessage, friend, false)
+        return {
+          _id: friend._id,
+          conversation: conversation,
+          chatName: friend.profile.name,
+          avatar: friend.profile.avatar.url,
+          lastMessage: conversation?.lastMessage,
+          chatData: chatData,
+          time: handleGetTimeInChat(conversation.lastMessage.timestamp),
+          tag: conversation.tag,
+        };
+      });
+
+    const listConverGroup = groups.map((group) => {
+      const friend = group.conversation.participants.find(
+        (participant) => participant._id === group.lastMessage.senderId
+      )
+      const chatData = setDataChat(group.lastMessage, friend, false)
       return {
-        _id: friend._id,
-        conversation: conversation,
-        name: friend.profile.name,
-        avatar: friend.profile.avatar.url ,
-        background: friend.profile.background.url,
-        lastMessage: conversation?.lastMessage,
-        tag: conversation.tag,
+        _id: group._id,
+        conversation: group.conversation,
+        chatName: group.groupName,
+        avatar: group.avatar.url,
+        lastMessage: group.lastMessage,
+        chatData: chatData,
+        time: handleGetTimeInChat(group.lastMessage.timestamp),
+        tag: group.conversation.tag,
       };
     });
+    listConversation.push(...listConverGroup);
+    sortTime(listConversation)
+    setChats(listConversation);
+  };
 
-    const listGroup = groups.map((group) => {
-      return addDataToGroup(group);
-    });
-    listChat.push(...listGroup);
-    fetchDataConver(listChat);
-  };
-  const addDataToGroup = (group) => {
-    return {
-      _id: group._id,
-      conversation: group.conversation,
-      name: group.groupName,
-      avatar: group.avatar.url,
-      lastMessage: group.lastMessage || group.conversation.lastMessage,
-      tag: group.conversation.tag,
-      createBy: group.createBy,
-      createAt: group?.createAt,
-    };
-  };
   useEffect(() => {
-    fetchDataChat();
-  }, [conversations, groups]);
+    fetchDataChat()
+  }, [groups, conversations]);
 
-  const fetchDataConver = async (listChat) => {
-    let data = [];
-    let int = listChat.length;
-
-    for (let index = 0; index < int; index++) {
-      const conver = listChat[index];
-      if (conver.lastMessage) {
-        const dataChat = await setDataChat(conver.lastMessage, false);
-        const conversationNew = {
-          chat: conver,
-          dataChat: dataChat,
-          time: handleGetTimeInChat(conver?.lastMessage?.timestamp)
-        };
-        data.push(conversationNew);
-      }
-    };
-    sortTime(data)
-    setListFriends(data);
-  };
-
-  const updatedListFriends = async (conversationId, message, isDelete) => {
-    const updatedListFriends = await Promise.all(listFriends.map(async (item) => {
-      if (item.chat.conversation._id === conversationId) {
-        const dataChat = await setDataChat(message, isDelete);
+  const handleUpdateChats = async (conversationId, retrunMessage, isDelete) => {
+    const updateChat = await Promise.all(chats.map(async (chat) => {
+      if (chat.conversation._id === conversationId) {
+        const friend = chat.conversation.participants.find((participant) => participant._id === retrunMessage.senderId)
+        const chatData = await setDataChat(retrunMessage, friend, isDelete);
         return {
-          ...item,
-          chat: {
-            ...item?.chat,
-            lastMessage: message
-          },
-          dataChat: dataChat,
-          time: handleGetTimeInChat(message?.timestamp)
+          ...chat,
+          lastMessage: retrunMessage,
+          chatData: chatData,
+          time: handleGetTimeInChat(retrunMessage?.timestamp)
         };
       }
-      return item;
+      return chat;
     }));
-    return updatedListFriends;
+    return updateChat;
   }
-  useEffect(() => {
-    const fetchDataListFriend = async () => {
-      try {
-        getConversations();
-        getGroups();
-      } catch (error) {
-        console.log("getFriendError:", error);
-      }
-    };
-    fetchDataListFriend();
-  }, [isGroupRedux])
 
   useEffect(() => {
-    const fetchSocket = async () => {
-      if (isNewSocket === "new_message") {
-        const message = newSocketData;
-        if (message && message.retrunMessage) {
-          // console.log("new_message:", message);
-          const update = await updatedListFriends(message.conversationId, message.retrunMessage, false)
-          const sortUpdate = sortTime(update);
-          setListFriends(sortUpdate);
-          setNewSocketData(null);
-        }
-      }
-      if (isNewSocket === "delete_message") {
-        const { chatRemove, conversationId, isDeleted } = newSocketData;
-        if (chatRemove) {
-          if (isDeleted) {
-            const updatedListFriends = listFriends.map((item) => {
-              if (item.chat.conversation._id === conversationId) {
+    // const fetchSocket = async () => {
+    //   if (isNewSocket === "add-to-group") {
+    //     const data = newSocketData;
+    //     if (data && data.addMembers) {
+    //       // console.log("add-to-group", data)
+    //       if (!listFriends.find(item => item.chat._id === data.group._id)) {
+    //         const group = data.group
+    //         if (data.addMembers.includes(authUser._id) && group.createBy._id !== authUser._id) {
+    //           console.log(`Bạn đã tham gia nhóm ${group.groupName}`);
+    //           showToastSuccess(`Bạn đã tham gia nhóm ${group.groupName}`)
+    //           const addGroup = addDataToGroup(group)
+    //           let dataChat
+    //           if (addGroup?.lastMessage?.senderId) {
+    //             dataChat = setDataChat(addGroup.lastMessage, false);
+    //           }
+    //           const conversationNew = {
+    //             chat: addGroup,
+    //             dataChat: dataChat || 'Chưa có tin nhắn',
+    //             time: handleGetTimeInChat(addGroup?.lastMessage?.timestamp || addGroup.createAt)
+    //           };
+    //           const newListFriends = [conversationNew, ...listFriends]
+    //           setListFriends(newListFriends);
+    //           // setNewSocketData(null);
+    //         }
+    //       }
+    //     }
+    //   }
 
-              }
-            });
-          } else {
-            // console.log("delete_message:", chatRemove);
-            const update = await updatedListFriends(conversationId, chatRemove, true)
-            setListFriends(update)
-          }
-        }
-      }
-      if (isNewSocket === "add-to-group") {
-        const data = newSocketData;
-        if (data && data.addMembers) {
-          // console.log("add-to-group", data)
-          if (!listFriends.find(item => item.chat._id === data.group._id)) {
-            const group = data.group
-            if (data.addMembers.includes(authUser._id) && group.createBy._id !== authUser._id) {
-              console.log(`Bạn đã tham gia nhóm ${group.groupName}`);
-              showToastSuccess(`Bạn đã tham gia nhóm ${group.groupName}`)
-              const addGroup = addDataToGroup(group)
-              let dataChat
-              if (addGroup?.lastMessage?.senderId) {
-                dataChat = await setDataChat(addGroup.lastMessage, false);
-              }
-              const conversationNew = {
-                chat: addGroup,
-                dataChat: dataChat || 'Chưa có tin nhắn',
-                time: handleGetTimeInChat(addGroup?.lastMessage?.timestamp || addGroup.createAt)
-              };
-              const newListFriends = [conversationNew, ...listFriends]
-              setListFriends(newListFriends);
-              setNewSocketData(null);
-            }
-          }
-        }
-      }
-
-      if (isNewSocket === "remove-from-group") {
-        const group = newSocketData
-        if (group && group.removeMembers) {
-          // console.log("remove-from-group", group);
-          if (group.removeMembers.includes(authUser._id)) {
-            console.log(`Bạn đã bị xoá khỏi nhóm ${group.name}`);
-            showToastSuccess(`Bạn đã bị xoá khỏi nhóm ${group.name}`)
-            const updatedConversationList = listFriends.filter(item => item.chat._id !== group.id);
-            setListFriends(updatedConversationList)
-            setNewSocketData(null);
-          }
-        }
-      }
-      if (isNewSocket === "delete-group") {
-        const group = newSocketData;
-        // console.log("delete-group", group);
-        if (group && group.name) {
-          showToastSuccess(`Nhóm ${group.name} đã giải tán`)
-          const updatedConversationList = listFriends.filter(item => item.chat._id !== group.id);
-          setListFriends(updatedConversationList)
-          setNewSocketData(null);
-        }
-      }
-      if (isNewSocket === "update-group") {
-        const group = newSocketData
-        if (group && group.avatar) {
-          // console.log("update-group", group);
-          const groupUpdate = listFriends.map((item) => {
-            if (item.chat._id === group.id) {
-              return {
-                ...item,
-                chat: {
-                  ...item.chat,
-                  name: group.name,
-                  avatar: group.avatar
-                }
-              }
-            }
-            return item;
-          })
-          setListFriends(groupUpdate)
-        }
-      }
+    //   if (isNewSocket === "remove-from-group") {
+    //     const group = newSocketData
+    //     if (group && group.removeMembers) {
+    //       // console.log("remove-from-group", group);
+    //       if (group.removeMembers.includes(authUser._id)) {
+    //         console.log(`Bạn đã bị xoá khỏi nhóm ${group.name}`);
+    //         showToastSuccess(`Bạn đã bị xoá khỏi nhóm ${group.name}`)
+    //         const updatedConversationList = listFriends.filter(item => item.chat._id !== group.id);
+    //         setListFriends(updatedConversationList)
+    //         // setNewSocketData(null);
+    //       }
+    //     }
+    //   }
+    //   if (isNewSocket === "delete-group") {
+    //     const group = newSocketData;
+    //     // console.log("delete-group", group);
+    //     if (group && group.name) {
+    //       showToastSuccess(`Nhóm ${group.name} đã giải tán`)
+    //       const updatedConversationList = listFriends.filter(item => item.chat._id !== group.id);
+    //       setListFriends(updatedConversationList)
+    //       // setNewSocketData(null);
+    //     }
+    //   }
+    //   if (isNewSocket === "update-group") {
+    //     const group = newSocketData
+    //     if (group && group.avatar) {
+    //       // console.log("update-group", group);
+    //       const groupUpdate = listFriends.map((item) => {
+    //         if (item.chat._id === group.id) {
+    //           return {
+    //             ...item,
+    //             chat: {
+    //               ...item.chat,
+    //               name: group.name,
+    //               avatar: group.avatar
+    //             }
+    //           }
+    //         }
+    //         return item;
+    //       })
+    //       setListFriends(groupUpdate)
+    //     }
+    //   }
+    // }
+    const handleFetchSocket = async () => {
+      const chatsUpdate = await fetchSocket(isNewSocket, newSocketData, chats)
+      setChats(chatsUpdate)
     }
+    handleFetchSocket()
 
-    fetchSocket()
   }, [isNewSocket, newSocketData]);
 
   const handleChatItemPress = (item) => {
-    navigation.navigate("Message", { chatItem: item.chat });
+    navigation.navigate("Message", { chatItem: item });
   };
+
+  useEffect(() => {
+    const handleNavigation = async () => {
+      if (groupReponse) {
+        const chatItem = await handleMessageNavigation(groupReponse)
+        navigation.navigate("Message", { chatItem: chatItem });
+      }
+    }
+    handleNavigation()
+  }, [groupReponse])
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <FlatList
-        data={listFriends}
+        data={chats}
         renderItem={({ item }) => (
           <Pressable onPress={() => handleChatItemPress(item)}>
             <ChatItem item={item} />
           </Pressable>
         )}
-        keyExtractor={(item) => item.chat.conversation._id}
+        keyExtractor={(item) => item._id}
       />
+      {/* Modal Tạo nhóm mới */}
+      {isModalCreateGroup &&
+        <CreateGroup
+          isOpen={isModalCreateGroup}
+          isClose={(close) => setIsModalCreateGroup(close)}
+          setGroup={(groupReponse) => setGroupResone(groupReponse)} />
+      }
+      {/* Modal Tiện ích */}
       <Modal
         animationType="none"
         transparent={true}
@@ -333,6 +321,10 @@ function Chat({ navigation }) {
                 flexDirection: "row",
                 alignItems: "center",
                 padding: 10,
+              }}
+              onPress={() => {
+                setIsModalCreateGroup(!isModalCreateGroup);
+                setModalVisible(!isModalVisible);
               }}
             >
               <Ionicons
@@ -405,8 +397,8 @@ function Chat({ navigation }) {
             </Pressable>
           </View>
         </Pressable>
-      </Modal>
-    </SafeAreaView>
+      </Modal >
+    </SafeAreaView >
   );
 }
 const styles = StyleSheet.create({

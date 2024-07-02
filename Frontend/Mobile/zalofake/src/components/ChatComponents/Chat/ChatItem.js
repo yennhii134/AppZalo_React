@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Text, View, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import avatarGroup from '../../../../assets/avatarGroup.png'
 
 const ChatItem = ({ item }) => {
-  const [avatar] = useState(avatarGroup)
+
   return (
     <View
       style={{
@@ -17,7 +16,7 @@ const ChatItem = ({ item }) => {
       <View
         style={{ width: "15%", justifyContent: "center", alignItems: "center" }}>
         <Image
-          source={item.chat.avatar === "https://res.cloudinary.com/dq3pxd9eq/image/upload/group_avatar.jpg" ? avatar : { uri: item.chat.avatar }}
+          source={{ uri: item.avatar }}
           style={{ width: 55, height: 55, borderRadius: 25 }} />
       </View>
       <View
@@ -28,8 +27,8 @@ const ChatItem = ({ item }) => {
         }}
       >
         <View style={{ flexDirection: 'row' }}>
-          {item.chat.tag === 'group' ? <Ionicons name="people" size={20} color="gray" /> : <View></View>}
-          <Text style={{ fontSize: 18, marginBottom: 5, paddingLeft: 5, fontWeight: 'bold' }}>{item.chat.name}</Text>
+          {item.tag === 'group' ? <Ionicons name="people" size={20} color="gray" /> : <View></View>}
+          <Text style={{ fontSize: 18, marginBottom: 5, paddingLeft: 5, fontWeight: 'bold' }}>{item.chatName}</Text>
         </View>
         <Text
           style={{
@@ -38,7 +37,7 @@ const ChatItem = ({ item }) => {
           }}
           numberOfLines={1}
         >
-          {item.dataChat}
+          {item.chatData}
         </Text>
       </View>
       <View
